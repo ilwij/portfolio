@@ -118,9 +118,6 @@ function ContactSection() {
                 A role, a project, or just infrastructure talk — pick a channel below
                 and I'll get back to you.
               </p>
-              <span className="ct-avail">
-                <i></i>Open to opportunities
-              </span>
             </div>
 
             <div className="ct-links">
