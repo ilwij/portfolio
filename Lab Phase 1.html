@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lab · Phase 1 — Ilham Wijaya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="image-slot.js"></script>
+<script src="phase1-articles.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+const DIFF_LVL = { Beginner: 1, Intermediate: 2, Advanced: 3, Expert: 4 };
+function DiffDots({ diff }) {
+  const n = DIFF_LVL[diff] || 0;
+  return (
+    <span className="br-diff" title={diff}>
+      {[0, 1, 2, 3].map((k) => <i className={k < n ? "on" : ""} key={k}></i>)}
+    </span>
+  );
+}
+
+function Builds() {
+  const arts = window.PHASE1_ARTICLES || [];
+  const cats = window.PHASE1_CATEGORIES || [];
+  return (
+    <section id="builds" className="section">
+      <div className="section-inner">
+        <div className="shead">
+          <span className="shead-no">02</span>
+          <span className="shead-tag">Builds · 22 documented</span>
+          <span className="shead-rule"></span>
+        </div>
+        <p className="builds-intro">
+          Every build in Phase 1 has its own write-up — <b>overview, topology context, the actual
+          configuration, evidence screenshots, and the lessons learned.</b> Grouped by domain below;
+          pick any one to read the full breakdown.
+        </p>
+        {cats.map((c) => {
+          const items = arts.filter((a) => a.cat === c.key);
+          return (
+            <div className="cat-block" key={c.key}>
+              <div className="cat-head">
+                <span className="cat-no">{c.short}</span>
+                <span className="cat-label">{c.label}</span>
+                <span className="cat-count">{items.length} {items.length === 1 ? "build" : "builds"}</span>
+                <span className="cat-rule"></span>
+              </div>
+              <div className="build-list">
+                {items.map((a) => (
+                  <a className="build-row" href={"article.html?a=" + a.slug} key={a.slug}>
+                    <span className="br-n">{a.n}</span>
+                    <span className="br-main">
+                      <span className="br-title">{a.title}<DiffDots diff={a.diff} /></span>
+                      <span className="br-desc">{a.desc}</span>
+                    </span>
+                    <span className="br-go">read →</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function Topbar() {
+  return (
+    <header className="topbar">
+      <div className="brand">
+        <a className="brand-mark" href="Portfolio.html">IW</a>
+        <span className="brand-path">
+          <a href="Portfolio.html">ilham</a><span className="sep">/</span><a href="Lab.html">lab</a><span className="sep">/</span><span className="here">phase 1</span>
+        </span>
+      </div>
+      <nav className="topnav">
+        <a href="Portfolio.html#about">About</a>
+        <a href="Portfolio.html#skills">Skills</a>
+        <a href="Portfolio.html#experience">Experience</a>
+        <a href="Portfolio.html#contact">Contact</a>
+        <a href="Lab.html" className="lab-link active">Lab <span className="arw">↗</span></a>
+      </nav>
+    </header>
+  );
+}
+
+function LabHero() {
+  return (
+    <section className="lab-hero">
+      <div className="lab-hero-inner">
+        <span className="lab-kicker"><a href="Lab.html" style={{color:"var(--cyan)",textDecoration:"none"}}>← The Lab</a><span className="bar"></span>Phase 1 · Running</span>
+        <h1 className="lab-title">
+          An enterprise network,<br />built from <span className="g">scratch.</span>
+        </h1>
+        <p className="lab-lead">
+          A full dual-site enterprise environment running on a single laptop — <b>Palo Alto</b> and
+          <b> Fortinet</b> firewalls, OSPF/BGP routing over IPSec, a <b>Kubernetes</b> cluster, Active
+          Directory, and <b>hybrid connectivity to Azure</b>. Everything below isn't a diagram of what
+          I read about — it's a snapshot of what's actually running, with the configs and evidence to prove it.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+const STATS = [
+  { v: "2", u: "sites", k: "HQ + Branch" },
+  { v: "13", u: "nodes", k: "fw · switch · server · k8s" },
+  { v: "22", u: "builds", k: "documented + verified" },
+  { v: "3", u: "clouds", k: "on-prem · Azure · relay" },
+];
+
+function Overview() {
+  return (
+    <section id="overview" className="section">
+      <div className="section-inner">
+        <div className="shead">
+          <span className="shead-no">01</span>
+          <span className="shead-tag">Overview · Big Picture</span>
+          <span className="shead-rule"></span>
+        </div>
+
+        <div className="lab-stats">
+          {STATS.map((s, i) => (
+            <div className="lab-stat" key={i}>
+              <span className="v">{s.v}<span className="u">{s.u}</span></span>
+              <span className="k">{s.k}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="topo-embed">
+          <div className="topo-embed-bar">
+            <div className="traffic"><i></i><i></i><i></i></div>
+            <span className="ttl"><b>phase1-topology</b> · dual-site + hybrid cloud</span>
+            <a className="open-full" href="Lab Topology.html" target="_blank" rel="noopener">open fullscreen ↗</a>
+          </div>
+          <iframe src="Lab Topology.html" title="Lab Topology — Phase 1" loading="lazy"></iframe>
+        </div>
+        <p className="topo-cap">
+          Rebuilt from PNETLab — pan, zoom, and <b>click any device</b> to see exactly what was
+          configured on it, with links to the write-ups.
+        </p>
+
+        <div className="proof">
+          <div className="proof-card">
+            <div className="proof-bar">
+              <div className="traffic"><i></i><i></i><i></i></div>
+              <span className="ttl"><b>PNETLab</b> — raw lab topology</span>
+              <span className="badge">backend proof</span>
+            </div>
+            <div className="proof-slot">
+              <a href="screenshots/pnet-topology.png" target="_blank" rel="noopener" className="proof-shot">
+                <img src="screenshots/pnet-topology.png" alt="Raw PNETLab topology canvas — the source lab every device boots from" loading="lazy" />
+              </a>
+            </div>
+          </div>
+          <p className="proof-cap">
+            The polished diagram above is a clean rebuild. <b>This is the source</b> — the actual
+            PNETLab canvas every device boots from. No mock-ups, no stock art.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="site-foot">
+      <span className="fl">© 2026 <b>Ilham Wijaya</b> — Lab · Phase 1</span>
+      <span className="fr">Space Grotesk · IBM Plex Mono · served on <b>nginx</b></span>
+    </footer>
+  );
+}
+
+function LabPage() {
+  return (
+    <React.Fragment>
+      <Topbar />
+      <LabHero />
+      <Overview />
+      <Builds />
+      <Footer />
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<LabPage />);
+</script>
+</body>
+</html>

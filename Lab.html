@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lab — Ilham Wijaya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
+
+function Topbar() {
+  return (
+    <header className="topbar">
+      <div className="brand">
+        <a className="brand-mark" href="Portfolio.html">IW</a>
+        <span className="brand-path">
+          <a href="Portfolio.html">ilham</a><span className="sep">/</span><span className="here">lab</span>
+        </span>
+      </div>
+      <nav className="topnav">
+        <a href="Portfolio.html#about">About</a>
+        <a href="Portfolio.html#skills">Skills</a>
+        <a href="Portfolio.html#experience">Experience</a>
+        <a href="Portfolio.html#contact">Contact</a>
+        <a href="Lab.html" className="lab-link active">Lab <span className="arw">↗</span></a>
+      </nav>
+    </header>
+  );
+}
+
+function LabHero() {
+  return (
+    <section className="lab-hero">
+      <div className="lab-hero-inner">
+        <span className="lab-kicker"><span className="bar"></span>The Lab · Build Roadmap</span>
+        <h1 className="lab-title">
+          One lab,<br />built in <span className="g">phases.</span>
+        </h1>
+        <p className="lab-lead">
+          A long-running home lab where I build enterprise IT infrastructure for real — not slideware.
+          It grows in phases: each one adds a layer to the stack, fully documented and verifiable.
+          <b> Phase 1 is live</b>; the rest are on the bench. Pick a phase to dig in.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+const PHASES = [
+  {
+    n: "1",
+    status: "running",
+    statusLabel: "Running",
+    kicker: "Foundation",
+    title: "Enterprise Network Foundation",
+    desc: (<span>A full <b>dual-site enterprise network</b> with hybrid cloud — Palo Alto &amp; Fortinet
+      firewalls, OSPF/BGP routing over IPSec, a K3s Kubernetes cluster, Active Directory, and
+      site-to-site connectivity to Azure. Every build is documented with config + evidence.</span>),
+    meta: [["22", "builds"], ["13", "nodes"], ["2", "sites"], ["3", "clouds"]],
+    tags: ["Palo Alto", "Fortinet", "OSPF / BGP", "IPSec", "K3s", "Active Directory", "Azure"],
+    href: "Lab Phase 1.html",
+  },
+  {
+    n: "2",
+    status: "next",
+    statusLabel: "Up next · Planned",
+    kicker: "Security Operations",
+    title: "SOC & Detection Engineering",
+    desc: (<span>Turn the network into a <b>monitored estate</b>. Pipe every device into a SIEM,
+      build detection rules, and run real incident-response drills — the same discipline I do at work,
+      rebuilt from the ground up in the lab.</span>),
+    meta: [["~6", "builds planned"]],
+    tags: ["Wazuh SIEM", "ELK Stack", "Syslog / NetFlow", "MITRE ATT&CK", "IR Runbooks"],
+    plan: [
+      <span><b>Centralized logging</b> — Wazuh + ELK ingesting from PA, Forti, switches, servers</span>,
+      <span><b>Syslog &amp; NetFlow</b> collectors across both sites</span>,
+      <span><b>Detection rules</b> mapped to MITRE ATT&amp;CK, tuned against lab attacks</span>,
+      <span><b>Alerting &amp; triage</b> — Alertmanager → incident workflow</span>,
+      <span><b>Incident-response runbooks</b> + tabletop exercises</span>,
+    ],
+  },
+  {
+    n: "3",
+    status: "planned",
+    statusLabel: "Planned",
+    kicker: "Automation & IaC",
+    title: "Everything as Code",
+    desc: (<span>Stop clicking, start declaring. Manage the <b>entire lab as code</b> — provisioning,
+      configuration, and drift control driven through pipelines instead of the CLI.</span>),
+    meta: [["~5", "builds planned"]],
+    tags: ["Ansible", "Terraform", "GitOps", "CI/CD", "Vault"],
+    plan: [
+      <span><b>Ansible</b> for network + server configuration management</span>,
+      <span><b>Terraform</b> provisioning for Azure &amp; Proxmox</span>,
+      <span><b>GitOps workflow</b> — config in Git, applied by pipeline</span>,
+      <span><b>Drift detection</b> + automated config backup</span>,
+      <span><b>Secrets management</b> with HashiCorp Vault</span>,
+    ],
+  },
+  {
+    n: "4",
+    status: "planned",
+    statusLabel: "Planned",
+    kicker: "Agentic AI Ops",
+    title: "An AI Agent that Runs the Lab",
+    desc: (<span>Put an <b>autonomous AI agent</b> on top of the whole stack — one I can talk to in plain
+      language, that continuously watches the environment, and that can safely <b>take action</b>:
+      investigate alerts, run diagnostics, and remediate through automation.</span>),
+    meta: [["~5", "builds planned"]],
+    tags: ["LLM Agent", "MCP / Tool-use", "ChatOps", "Auto-remediation", "Guardrails"],
+    plan: [
+      <span><b>Conversational ops</b> — query the whole lab in natural language via chat / CLI</span>,
+      <span><b>Always-on monitoring</b> — the agent ingests alerts &amp; telemetry and triages on its own</span>,
+      <span><b>Tool-use over MCP</b> — wired into firewalls, switches, K8s &amp; Azure through safe tools</span>,
+      <span><b>Action with guardrails</b> — runs remediation runbooks with approvals &amp; rollback</span>,
+      <span><b>Auto-reporting</b> — incident summaries &amp; change logs written by the agent</span>,
+    ],
+  },
+];
+
+function PhaseCard({ p, onPlan }) {
+  const live = p.status === "running";
+  return (
+    <div className="ph-item">
+      <span className={"ph-node" + (live ? " running" : "")}>{p.n}</span>
+      <article
+        className={"ph-card " + (live ? "live" : "planned")}
+        onClick={live ? undefined : () => onPlan(p)}
+      >
+        <div className="ph-top">
+          <div>
+            <div className="ph-kicker">Phase {p.n} · {p.kicker}</div>
+            <h3 className="ph-title">{p.title}</h3>
+          </div>
+          <span className={"ph-status " + p.status}>
+            <span className="d"></span>{p.statusLabel}
+          </span>
+        </div>
+        <p className="ph-desc">{p.desc}</p>
+        <div className="ph-meta">
+          {p.meta.map((m, i) => <span className="m" key={i}><b>{m[0]}</b> {m[1]}</span>)}
+        </div>
+        <div className="ph-tags">
+          {p.tags.map((t, i) => <span className="ph-tag" key={i}>{t}</span>)}
+        </div>
+        <div className="ph-foot">
+          {live ? (
+            <a className="ph-cta enter" href={p.href}>Enter Phase 1 →</a>
+          ) : (
+            <button className="ph-cta plan" onClick={(e) => { e.stopPropagation(); onPlan(p); }}>
+              View the plan →
+            </button>
+          )}
+          <span className="ph-foot-note">
+            {live ? "topology · 22 documented builds" : "not built yet · coming soon"}
+          </span>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function PlanModal({ phase, onClose }) {
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+  return (
+    <div className={"modal-scrim" + (phase ? " open" : "")} onClick={onClose}>
+      {phase && (
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-head">
+            <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+            <div className="modal-kicker">Phase {phase.n} · {phase.kicker}</div>
+            <h3 className="modal-title">{phase.title}</h3>
+            <span className="modal-soon"><span>◷</span> Coming Soon</span>
+          </div>
+          <div className="modal-body">
+            <p className="modal-desc">{phase.desc}</p>
+            <div className="plan-label">What this phase will add</div>
+            <ul className="plan-list">
+              {phase.plan.map((item, i) => (
+                <li key={i}><span className="box"></span><span>{item}</span></li>
+              ))}
+            </ul>
+            <div className="modal-tags">
+              <span className="ml">Target stack</span>
+              {phase.tags.map((t, i) => <span className="modal-tag" key={i}>{t}</span>)}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Roadmap({ onPlan }) {
+  return (
+    <section id="phases" className="section">
+      <div className="section-inner">
+        <div className="shead">
+          <span className="shead-no">01</span>
+          <span className="shead-tag">Phases · Roadmap</span>
+          <span className="shead-rule"></span>
+        </div>
+        <div className="roadmap">
+          {PHASES.map((p) => <PhaseCard key={p.n} p={p} onPlan={onPlan} />)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="site-foot">
+      <span className="fl">© 2026 <b>Ilham Wijaya</b> — The Lab</span>
+      <span className="fr">Space Grotesk · IBM Plex Mono · served on <b>nginx</b></span>
+    </footer>
+  );
+}
+
+function LabPage() {
+  const [phase, setPhase] = useState(null);
+  return (
+    <React.Fragment>
+      <Topbar />
+      <LabHero />
+      <Roadmap onPlan={setPhase} />
+      <Footer />
+      <PlanModal phase={phase} onClose={() => setPhase(null)} />
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<LabPage />);
+</script>
+</body>
+</html>

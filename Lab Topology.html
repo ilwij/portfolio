@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lab Topology — Phase 1 · Ilham Wijaya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        oklch(0.165 0.008 250);
+    --bg-2:      oklch(0.195 0.009 250);
+    --panel:     oklch(0.215 0.010 250);
+    --panel-2:   oklch(0.235 0.011 250);
+    --line:      oklch(0.30 0.012 250);
+    --line-soft: oklch(0.26 0.011 250);
+
+    --fg:        oklch(0.94 0.006 250);
+    --fg-dim:    oklch(0.72 0.012 250);
+    --fg-faint:  oklch(0.56 0.012 250);
+
+    --cyan:      oklch(0.82 0.12 220);
+    --cyan-dim:  oklch(0.62 0.09 220);
+    --green:     oklch(0.82 0.16 150);
+    --green-dim: oklch(0.55 0.10 150);
+    --amber:     oklch(0.83 0.13 75);
+    --violet:    oklch(0.78 0.12 300);
+
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); }
+  body {
+    font-family: var(--sans);
+    color: var(--fg);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+    display: flex; align-items: center; gap: 22px;
+    padding: 16px clamp(18px, 3vw, 34px);
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in oklch, var(--bg) 86%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 30px; height: 30px; display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 7px;
+    font-family: var(--mono); font-weight: 600; font-size: 13px;
+    color: var(--fg); background: var(--panel);
+  }
+  .ttl { display: flex; flex-direction: column; gap: 2px; }
+  .ttl b { font-family: var(--sans); font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .ttl span { font-family: var(--mono); font-size: 11px; color: var(--fg-faint); letter-spacing: 0.04em; }
+
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-left: 8px; }
+  .lg { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--fg-dim); white-space: nowrap; }
+  .lg .ln { width: 22px; height: 0; border-top-width: 2px; border-top-style: solid; }
+  .lg .ln.lan   { border-color: var(--cyan); }
+  .lg .ln.lacp  { border-color: var(--cyan); border-top-style: double; border-top-width: 4px; }
+  .lg .ln.ipsec { border-color: var(--green); }
+  .lg .ln.wg    { border-color: var(--amber); }
+  .lg .ln.gp    { border-color: var(--cyan); border-top-style: dashed; }
+  .lg .ln.net   { border-color: var(--fg-faint); border-top-style: dashed; }
+
+  .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .zbtn {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+    color: var(--fg-dim); font-family: var(--mono); font-size: 15px; cursor: pointer;
+    transition: border-color .16s, color .16s, background .16s;
+  }
+  .zbtn:hover { border-color: var(--fg-faint); color: var(--fg); background: var(--panel-2); }
+  .zbtn.wide { width: auto; padding: 0 12px; font-size: 12px; letter-spacing: 0.04em; }
+
+  /* ---------- viewport / canvas ---------- */
+  #viewport {
+    position: fixed; inset: 0; top: 64px;
+    overflow: hidden; cursor: grab;
+    background:
+      radial-gradient(70% 60% at 30% 6%, color-mix(in oklch, var(--green) 8%, transparent) 0%, transparent 55%),
+      radial-gradient(70% 60% at 88% 92%, color-mix(in oklch, var(--cyan) 7%, transparent) 0%, transparent 55%);
+  }
+  #viewport::before {
+    content: ""; position: absolute; inset: -2000px;
+    background-image:
+      linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
+    background-size: 56px 56px; opacity: 0.32; pointer-events: none;
+  }
+  #viewport.grabbing { cursor: grabbing; }
+
+  #canvas {
+    position: absolute; top: 0; left: 0;
+    width: 1740px; height: 1320px;
+    transform-origin: 0 0;
+  }
+  #wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }
+
+  /* ---------- zones ---------- */
+  .zone {
+    position: absolute; z-index: 2;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: color-mix(in oklch, var(--panel) 30%, transparent);
+    box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--fg) 4%, transparent);
+  }
+  .zone.hq     { border-color: color-mix(in oklch, var(--cyan) 22%, var(--line)); }
+  .zone.branch { border-color: color-mix(in oklch, var(--green) 22%, var(--line)); }
+  .zone.azure  { border-color: color-mix(in oklch, var(--violet) 26%, var(--line)); }
+  .zone-tag {
+    position: absolute; top: -11px; left: 22px;
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 3px 12px; border-radius: 999px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    background: var(--bg); border: 1px solid var(--line);
+  }
+  .zone.hq .zone-tag     { color: var(--cyan);   border-color: color-mix(in oklch, var(--cyan) 40%, var(--line)); }
+  .zone.branch .zone-tag { color: var(--green);  border-color: color-mix(in oklch, var(--green) 40%, var(--line)); }
+  .zone.azure .zone-tag  { color: var(--violet); border-color: color-mix(in oklch, var(--violet) 42%, var(--line)); }
+  .zone-tag i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px 0 currentColor; }
+  .zone-sub {
+    position: absolute; top: 16px; right: 20px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--fg-faint); letter-spacing: 0.02em; text-align: right;
+  }
+
+  /* ---------- nodes ---------- */
+  .node {
+    position: absolute; z-index: 3;
+    border: 1px solid var(--line-soft);
+    border-radius: 13px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    padding: 12px 13px;
+    box-shadow: 0 18px 36px -28px rgba(0,0,0,0.8);
+  }
+  .node.edge   { border-color: color-mix(in oklch, var(--cyan) 32%, var(--line)); }
+  .node.fw     { border-color: color-mix(in oklch, var(--amber) 30%, var(--line)); }
+  .nhead { display: flex; align-items: center; gap: 11px; }
+  .logo-tile {
+    position: relative;
+    width: 42px; height: 42px; flex-shrink: 0;
+    display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel-2);
+  }
+  .logo-tile img { width: 25px; height: 25px; display: block; }
+  .logo-tile .mono {
+    display: none; position: absolute; inset: 0;
+    place-items: center; font-family: var(--mono); font-weight: 600; font-size: 13px; color: var(--fg-dim);
+  }
+  .logo-tile svg { width: 26px; height: 26px; display: block; }
+  .nmeta { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .ntype { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--fg-faint); }
+  .nhost { font-family: var(--sans); font-weight: 600; font-size: 15px; letter-spacing: -0.015em; color: var(--fg); line-height: 1.1; }
+  .nip   { font-family: var(--mono); font-size: 11px; color: var(--cyan); letter-spacing: -0.01em; }
+  .node.fw .nip { color: var(--amber); }
+  .nstat {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--green); margin-top: 2px;
+  }
+  .nstat i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px 0 var(--green); }
+  .nstat.off { color: var(--fg-faint); }
+  .nstat.off i { background: var(--fg-faint); box-shadow: none; }
+
+  /* nested container node (proxmox / azure-vm / k3s / win-server) */
+  .box {
+    position: absolute; z-index: 3;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in oklch, var(--panel) 55%, var(--bg) 45%);
+    padding: 14px;
+    box-shadow: 0 22px 44px -30px rgba(0,0,0,0.85);
+  }
+  .box-head { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+  .box-head .logo-tile { width: 38px; height: 38px; }
+  .box-head .logo-tile img { width: 23px; height: 23px; }
+  .box-title { font-family: var(--sans); font-weight: 600; font-size: 14.5px; letter-spacing: -0.01em; }
+  .box-meta  { font-family: var(--mono); font-size: 10px; color: var(--fg-faint); margin-top: 1px; letter-spacing: 0.01em; }
+  .box-badge {
+    margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--fg-faint); padding: 3px 8px; border: 1px solid var(--line-soft); border-radius: 6px; white-space: nowrap;
+  }
+
+  .subcard {
+    border: 1px solid var(--line-soft); border-radius: 12px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    padding: 12px;
+  }
+  .subcard + .subcard { margin-top: 11px; }
+  .sc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .sc-head .logo-tile { width: 34px; height: 34px; border-radius: 9px; }
+  .sc-head .logo-tile img { width: 21px; height: 21px; }
+  .sc-name { font-family: var(--sans); font-weight: 600; font-size: 13px; letter-spacing: -0.01em; }
+  .sc-meta { font-family: var(--mono); font-size: 9.5px; color: var(--fg-faint); margin-top: 1px; }
+
+  .vmrow { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 11px; }
+  .vmchip {
+    display: flex; align-items: center; gap: 9px;
+    border: 1px solid var(--line-soft); border-radius: 9px;
+    background: color-mix(in oklch, var(--bg-2) 60%, transparent);
+    padding: 8px 9px;
+  }
+  .vmchip .logo-tile { width: 30px; height: 30px; border-radius: 8px; }
+  .vmchip .logo-tile img { width: 18px; height: 18px; }
+  .vmchip .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .vmchip .t b { font-family: var(--sans); font-weight: 600; font-size: 12px; letter-spacing: -0.01em; line-height: 1.05; }
+  .vmchip .t span { font-family: var(--mono); font-size: 9.5px; color: var(--cyan); }
+  .vmchip.role .t span { color: var(--fg-faint); }
+
+  .clab { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-faint); margin: 2px 0 8px; display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--fg-dim);
+    padding: 5px 9px; border: 1px solid var(--line-soft); border-radius: 7px;
+    background: color-mix(in oklch, var(--bg-2) 55%, transparent);
+  }
+  .chip img { width: 13px; height: 13px; display: block; }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .chip .ip { color: var(--green-dim); }
+  .chip b { color: var(--fg); font-weight: 500; }
+
+  /* simple inline-svg icon nodes (internet / client / clock) */
+  .ico { color: var(--fg-dim); }
+
+  /* ---------- wire labels ---------- */
+  .wlabel {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.01em;
+  }
+  .port {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.02em; fill: var(--fg-faint);
+  }
+
+  /* hint */
+  .hint {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 60; font-family: var(--mono); font-size: 11px; color: var(--fg-faint);
+    background: color-mix(in oklch, var(--bg) 80%, transparent); backdrop-filter: blur(6px);
+    border: 1px solid var(--line-soft); border-radius: 999px; padding: 7px 16px;
+    display: flex; gap: 14px; align-items: center;
+  }
+  .hint b { color: var(--fg-dim); font-weight: 500; }
+  @media (max-width: 720px){ .legend{ display:none; } .hint{ display:none; } }
+
+  /* hover tooltip */
+  .topo-tip {
+    position: fixed; z-index: 70; left: 0; top: 0; pointer-events: none;
+    font-family: var(--mono);
+    background: color-mix(in oklch, var(--bg) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 12px; max-width: 280px;
+    box-shadow: 0 18px 40px -20px rgba(0,0,0,0.9), 0 0 0 1px color-mix(in oklch, var(--cyan) 18%, transparent);
+    transform: translate(-50%, calc(-100% - 16px));
+    opacity: 0; transition: opacity .12s ease;
+  }
+  .topo-tip.show { opacity: 1; }
+  .topo-tip .tt-name { font-size: 12.5px; color: var(--fg); font-weight: 500; }
+  .topo-tip .tt-type { font-size: 10.5px; color: var(--fg-faint); margin-top: 2px; letter-spacing: 0.02em; }
+  .topo-tip .tt-ip { font-size: 10.5px; color: var(--cyan); margin-top: 3px; word-break: break-word; }
+  .topo-tip .tt-go {
+    font-size: 10px; color: var(--fg-faint); margin-top: 7px; padding-top: 6px;
+    border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 6px;
+  }
+  .topo-tip .tt-go::before { content: "▸"; color: var(--cyan); }
+
+  /* ---------- clickable affordance ---------- */
+  .node, .box, .subcard[data-cfg] { cursor: pointer; transition: border-color .16s, transform .16s, box-shadow .16s; }
+  .node:hover, .box:hover { border-color: color-mix(in oklch, var(--cyan) 55%, var(--line)); transform: translateY(-2px); box-shadow: 0 24px 44px -26px rgba(0,0,0,0.9), 0 0 0 1px color-mix(in oklch, var(--cyan) 32%, transparent); }
+  .subcard[data-cfg]:hover { border-color: color-mix(in oklch, var(--cyan) 50%, var(--line)); }
+  .node.sel, .box.sel { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 24px 44px -24px rgba(0,0,0,0.9); }
+
+  /* ---------- config drawer ---------- */
+  .scrim {
+    position: fixed; inset: 0; z-index: 70;
+    background: color-mix(in oklch, var(--bg) 52%, transparent);
+    backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity .22s ease;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: -480px; bottom: 0; z-index: 80;
+    width: min(444px, 94vw);
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    border-left: 1px solid var(--line);
+    box-shadow: -34px 0 64px -34px rgba(0,0,0,0.85);
+    transition: right .28s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { right: 0; }
+  .dr-head { display: flex; align-items: flex-start; gap: 14px; padding: 20px 20px 16px; border-bottom: 1px solid var(--line-soft); }
+  .dr-logo { width: 46px; height: 46px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-2); display: grid; place-items: center; position: relative; }
+  .dr-logo img { width: 27px; height: 27px; display: block; }
+  .dr-logo .mono { display: none; font-family: var(--mono); font-weight: 600; font-size: 14px; color: var(--fg-dim); }
+  .dr-titles { min-width: 0; flex: 1; }
+  .dr-type { font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--fg-faint); }
+  .dr-host { font-family: var(--sans); font-weight: 600; font-size: 20px; letter-spacing: -0.02em; color: var(--fg); margin-top: 3px; line-height: 1.1; }
+  .dr-ip { font-family: var(--mono); font-size: 11.5px; color: var(--cyan); margin-top: 4px; word-break: break-word; }
+  .dr-close { flex-shrink: 0; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg-dim); cursor: pointer; font-size: 17px; line-height: 1; display: grid; place-items: center; transition: color .16s, border-color .16s; }
+  .dr-close:hover { color: var(--fg); border-color: var(--fg-faint); }
+  .dr-body { padding: 18px 20px; overflow-y: auto; flex: 1; }
+  .cfg-group + .cfg-group { margin-top: 18px; }
+  .cfg-glabel { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan-dim); margin-bottom: 10px; }
+  .cfg-glabel::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+  .cfg-items { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .cfg-items li { position: relative; padding-left: 18px; font-family: var(--sans); font-size: 13.5px; line-height: 1.5; color: var(--fg-dim); letter-spacing: -0.005em; }
+  .cfg-items li::before { content: "\203A"; position: absolute; left: 3px; top: -1px; color: var(--cyan-dim); font-family: var(--mono); }
+  .cfg-items li b { color: var(--fg); font-weight: 500; }
+  .cfg-items code { font-family: var(--mono); font-size: 12px; color: var(--green); background: color-mix(in oklch, var(--green) 9%, transparent); padding: 1px 5px; border-radius: 4px; }
+  .dr-refs { padding: 15px 20px; border-top: 1px solid var(--line-soft); background: color-mix(in oklch, var(--bg-2) 50%, transparent); }
+  .dr-refs .rl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-faint); margin-bottom: 10px; }
+  .dr-reftags { display: flex; flex-wrap: wrap; gap: 7px; }
+  .dr-reftag { font-family: var(--mono); font-size: 11px; color: var(--fg-dim); padding: 5px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: color-mix(in oklch, var(--bg-2) 55%, transparent); }
+  .dr-reftag::before { content: "\25B8\00A0"; color: var(--cyan-dim); }
+  a.dr-reftag { text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; transition: color .14s, border-color .14s, background .14s; }
+  a.dr-reftag:hover { color: var(--cyan); border-color: color-mix(in oklch, var(--cyan) 45%, var(--line)); background: color-mix(in oklch, var(--cyan) 10%, transparent); }
+  a.dr-reftag::after { content: "\00A0\2197"; color: var(--cyan-dim); font-size: 10px; }
+  a.dr-reftag:hover::after { color: var(--cyan); }
+  span.dr-reftag { opacity: 0.7; }
+  @media (max-width: 520px){ .drawer { width: 100vw; } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">IW</div>
+    <div class="ttl"><b>Lab Topology</b><span>phase 1 · dual-site + hybrid cloud</span></div>
+  </div>
+  <div class="legend">
+    <span class="lg"><span class="ln lan"></span>LAN / Trunk</span>
+    <span class="lg"><span class="ln lacp"></span>LACP</span>
+    <span class="lg"><span class="ln ipsec"></span>IPSec S2S</span>
+    <span class="lg"><span class="ln wg"></span>WireGuard</span>
+    <span class="lg"><span class="ln gp"></span>GlobalProtect</span>
+    <span class="lg"><span class="ln net"></span>Internet</span>
+  </div>
+  <div class="tools">
+    <button class="zbtn" id="zout" title="Zoom out">−</button>
+    <button class="zbtn wide" id="zfit" title="Fit to screen">FIT</button>
+    <button class="zbtn" id="zin" title="Zoom in">+</button>
+  </div>
+</header>
+
+<div id="viewport">
+  <div id="canvas">
+    <svg id="wires"></svg>
+
+    <!-- ===================== TOP BAND ===================== -->
+    <!-- Internet -->
+    <div class="node" id="internet" style="left:770px; top:38px; width:188px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="ico"><path d="M3.5 16.5a3.5 3.5 0 0 1 .7-6.93A4.5 4.5 0 0 1 13 8a3.5 3.5 0 0 1 6.5 1.8 3.2 3.2 0 0 1-1 6.2z" stroke-linejoin="round"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">Public Network</span>
+          <span class="nhost">Internet</span>
+          <span class="nip">WAN uplink</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remote user (GlobalProtect) -->
+    <div class="node" id="remote" style="left:360px; top:34px; width:200px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="ico"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0" stroke-linecap="round"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">Remote Access VPN</span>
+          <span class="nhost">Remote User</span>
+          <span class="nip">GlobalProtect client</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- WireGuard relay -->
+    <div class="node edge" id="wireguard" style="left:1064px; top:30px; width:236px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="wireguard" data-color="88171A" alt="WireGuard"/><span class="mono">WG</span></div>
+        <div class="nmeta">
+          <span class="ntype">CGNAT Relay · S-Net VM</span>
+          <span class="nhost">wireguard</span>
+          <span class="nip">149.129.220.212 (public)</span>
+          <span class="nstat"><i></i>SNAT → Azure GW · UP</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== HQ ZONE ===================== -->
+    <div class="zone hq" style="left:36px; top:198px; width:924px; height:1082px;">
+      <span class="zone-tag"><i></i>HQ Site</span>
+      <span class="zone-sub">10.10.0.0/16 · VLAN 10·20·30·50·99<br/>OSPF Area 0 · AS 65100</span>
+    </div>
+
+    <!-- PA-HQ -->
+    <div class="node edge fw" id="pa" style="left:347px; top:268px; width:240px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="paloaltonetworks" data-color="FA582D" alt="Palo Alto"/><span class="mono">PA</span></div>
+        <div class="nmeta">
+          <span class="ntype">NGFW · PAN-OS 10</span>
+          <span class="nhost">PA-HQ</span>
+          <span class="nip">mgmt 10.10.99.10 · eth1/1 192.168.1.101</span>
+          <span class="nstat"><i></i>Zones: Outside·Inside·VPN·Azure</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CoreHQ -->
+    <div class="node" id="core" style="left:362px; top:404px; width:210px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="cisco" data-color="1BA0D7" alt="Cisco"/><span class="mono">CS</span></div>
+        <div class="nmeta">
+          <span class="ntype">L3 Core Switch · OSPF</span>
+          <span class="nhost">CoreHQ</span>
+          <span class="nip">10.10.99.1 · SVI gw · DHCP v30</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ServerSwitch -->
+    <div class="node" id="ssw" style="left:88px; top:548px; width:206px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="cisco" data-color="1BA0D7" alt="Cisco"/><span class="mono">CS</span></div>
+        <div class="nmeta">
+          <span class="ntype">L2 Switch · Server side</span>
+          <span class="nhost">ServerSwitch</span>
+          <span class="nip">10.10.99.12 · trunk v10·20·99</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AccessSwitch -->
+    <div class="node" id="asw" style="left:606px; top:548px; width:214px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="cisco" data-color="1BA0D7" alt="Cisco"/><span class="mono">CS</span></div>
+        <div class="nmeta">
+          <span class="ntype">L2 Switch · User side</span>
+          <span class="nhost">AccesSwitchHQ</span>
+          <span class="nip">10.10.99.13 · trunk v30·99</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Win10 client -->
+    <div class="node" id="win10" style="left:642px; top:712px; width:178px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ico"><rect x="3" y="4.5" width="18" height="12" rx="1.4"/><path d="M9.5 20h5M12 16.5V20" stroke-linecap="round"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">Client · VLAN 30</span>
+          <span class="nhost">win10</span>
+          <span class="nip">10.10.30.21 (DHCP)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- VPC client HQ -->
+    <div class="node" id="vpchq" style="left:642px; top:836px; width:178px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ico"><rect x="3" y="4.5" width="18" height="12" rx="1.4"/><path d="M9.5 20h5M12 16.5V20" stroke-linecap="round"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">Test Client · VLAN 30</span>
+          <span class="nhost">VPC</span>
+          <span class="nip">10.10.30.0/24</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proxmox host (big nested box) -->
+    <div class="box" id="proxmox" style="left:64px; top:712px; width:556px;">
+      <div class="box-head">
+        <div class="logo-tile"><img data-slug="proxmox" data-color="E57000" alt="Proxmox"/><span class="mono">PVE</span></div>
+        <div>
+          <div class="box-title">ServerFarm — Proxmox VE</div>
+          <div class="box-meta">proxmox · 192.168.1.24 / 10.10.99.18 · VLAN 10·20</div>
+        </div>
+        <span class="box-badge">Hypervisor</span>
+      </div>
+
+      <!-- K3s cluster sub-box -->
+      <div class="subcard" data-cfg="k3s">
+        <div class="sc-head">
+          <div class="logo-tile"><img data-slug="kubernetes" data-color="326CE5" alt="Kubernetes"/><span class="mono">K8s</span></div>
+          <div>
+            <div class="sc-name">K3s Cluster — v1.34.6+k3s1</div>
+            <div class="sc-meta">2 nodes · MetalLB pool 10.10.20.50–.55 · VLAN 20</div>
+          </div>
+        </div>
+        <div class="vmrow">
+          <div class="vmchip">
+            <div class="logo-tile"><img data-slug="kubernetes" data-color="326CE5" alt="k8s"/><span class="mono">M</span></div>
+            <div class="t"><b>K3s-Master</b><span>10.10.20.10 · control-plane</span></div>
+          </div>
+          <div class="vmchip">
+            <div class="logo-tile"><img data-slug="kubernetes" data-color="326CE5" alt="k8s"/><span class="mono">W</span></div>
+            <div class="t"><b>K3s-Worker-1</b><span>10.10.20.11 · worker</span></div>
+          </div>
+        </div>
+        <span class="clab">Workloads / LoadBalancer services</span>
+        <div class="chips">
+          <span class="chip"><img data-slug="prometheus" data-color="E6522C" alt="Prometheus"/>Prometheus <span class="ip">.54</span></span>
+          <span class="chip"><img data-slug="grafana" data-color="F46800" alt="Grafana"/>Grafana <span class="ip">.53</span></span>
+          <span class="chip"><span class="dot" style="background:var(--amber)"></span>Alertmanager <span class="ip">.52</span></span>
+          <span class="chip"><span class="dot" style="background:var(--green)"></span>SNMP-Exporter <span class="ip">.55</span></span>
+          <span class="chip"><span class="dot" style="background:var(--cyan)"></span>NTP-Server <span class="ip">.51</span></span>
+          <span class="chip"><img data-slug="kubernetes" data-color="326CE5" alt="k8s"/>Dashboard <span class="ip">.50</span></span>
+          <span class="chip"><span class="dot" style="background:var(--fg-faint)"></span>MetalLB</span>
+          <span class="chip"><span class="dot" style="background:var(--fg-faint)"></span>CoreDNS</span>
+        </div>
+      </div>
+
+      <!-- Windows Server sub-box -->
+      <div class="subcard" data-cfg="winserver">
+        <div class="sc-head">
+          <div class="logo-tile"><svg viewBox="0 0 24 24" width="25" height="25"><path fill="#2BA8E8" d="M3 5.5 10.6 4.4v6.9H3zM11.5 4.27 21 3v8.3h-9.5zM3 12.7h7.6v6.9L3 18.5zM11.5 12.7H21V21l-9.5-1.3z"/></svg></div>
+          <div>
+            <div class="sc-name">win-server-2022</div>
+            <div class="sc-meta">win-server.ilwij.lab · 10.10.10.10 · VM 103 · VLAN 10</div>
+          </div>
+        </div>
+        <span class="clab">Installed roles</span>
+        <div class="chips">
+          <span class="chip"><span class="dot" style="background:var(--cyan)"></span><b>AD DS</b> · ilwij.lab</span>
+          <span class="chip"><span class="dot" style="background:var(--cyan)"></span>DNS Server</span>
+          <span class="chip"><span class="dot" style="background:var(--green)"></span>NPS · RADIUS</span>
+          <span class="chip"><span class="dot" style="background:var(--fg-faint)"></span>File Server</span>
+          <span class="chip"><span class="dot" style="background:var(--fg-faint)"></span>GPO</span>
+          <span class="chip"><span class="dot" style="background:var(--fg-faint)"></span>NTP source</span>
+        </div>
+      </div>
+
+      <!-- TinyLinux -->
+      <div class="vmchip role" style="margin-top:11px;">
+        <div class="logo-tile"><img data-slug="linux" data-color="FCC624" alt="Linux"/><span class="mono">TL</span></div>
+        <div class="t"><b>TinyLinux</b><span>VM 100 · utility · stopped</span></div>
+      </div>
+    </div>
+
+    <!-- ===================== BRANCH ZONE ===================== -->
+    <div class="zone branch" style="left:992px; top:340px; width:300px; height:660px;">
+      <span class="zone-tag"><i></i>Branch Site</span>
+      <span class="zone-sub">10.10.40.0/24 · 10.10.199.0/24<br/>AS 65200</span>
+    </div>
+
+    <!-- Branch FW -->
+    <div class="node edge fw" id="bfw" style="left:1022px; top:404px; width:240px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="fortinet" data-color="EE3124" alt="Fortinet"/><span class="mono">FG</span></div>
+        <div class="nmeta">
+          <span class="ntype">NGFW · FortiOS 7.6</span>
+          <span class="nhost">Branch-FW</span>
+          <span class="nip">10.10.199.2 · port1 192.168.1.110</span>
+          <span class="nstat"><i></i>wan · lan · vpn</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Branch -->
+    <div class="node" id="cbranch" style="left:1032px; top:548px; width:220px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="cisco" data-color="1BA0D7" alt="Cisco"/><span class="mono">CS</span></div>
+        <div class="nmeta">
+          <span class="ntype">L3 Core Switch</span>
+          <span class="nhost">Core-Branch</span>
+          <span class="nip">10.10.199.1</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SW Branch -->
+    <div class="node" id="sbranch" style="left:1032px; top:684px; width:220px;">
+      <div class="nhead">
+        <div class="logo-tile"><img data-slug="cisco" data-color="1BA0D7" alt="Cisco"/><span class="mono">CS</span></div>
+        <div class="nmeta">
+          <span class="ntype">L2 Switch</span>
+          <span class="nhost">SW-Branch</span>
+          <span class="nip">10.10.199.10 · VLAN 40</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- VPC Branch -->
+    <div class="node" id="vpcbr" style="left:1052px; top:820px; width:180px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="ico"><rect x="3" y="4.5" width="18" height="12" rx="1.4"/><path d="M9.5 20h5M12 16.5V20" stroke-linecap="round"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">Branch Client · VLAN 40</span>
+          <span class="nhost">VPC</span>
+          <span class="nip">10.10.40.0/24</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== AZURE ZONE ===================== -->
+    <div class="zone azure" style="left:1332px; top:340px; width:372px; height:660px;">
+      <span class="zone-tag"><i></i>Microsoft Azure</span>
+      <span class="zone-sub">RG-Lab · Australia East<br/>vnet-lab 10.20.0.0/16</span>
+    </div>
+
+    <!-- Azure VPN Gateway -->
+    <div class="node edge" id="azgw" style="left:1356px; top:404px; width:324px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" width="25" height="25"><path fill="#3AA0E3" d="M9.55 3.2h4.3L9.1 17.3l5.65-.02-2 3.5L4 19.3 9.55 3.2zm1.05 4.55-2.9 8.55 4.95-.6-2.05-7.95z"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">VPN Gateway · VpnGw1AZ</span>
+          <span class="nhost">vpngw-lab</span>
+          <span class="nip">20.11.94.68 · GatewaySubnet /27</span>
+          <span class="nstat"><i></i>IPSec_Palo · CONNECTED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- NAT Gateway -->
+    <div class="node" id="aznat" style="left:1356px; top:548px; width:156px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" width="25" height="25"><path fill="#3AA0E3" d="M9.55 3.2h4.3L9.1 17.3l5.65-.02-2 3.5L4 19.3 9.55 3.2zm1.05 4.55-2.9 8.55 4.95-.6-2.05-7.95z"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">NAT Gateway</span>
+          <span class="nhost">natgw-lab</span>
+          <span class="nip">20.5.97.63</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- NSG -->
+    <div class="node" id="aznsg" style="left:1524px; top:548px; width:156px;">
+      <div class="nhead">
+        <div class="logo-tile"><svg viewBox="0 0 24 24" width="25" height="25"><path fill="#3AA0E3" d="M9.55 3.2h4.3L9.1 17.3l5.65-.02-2 3.5L4 19.3 9.55 3.2zm1.05 4.55-2.9 8.55 4.95-.6-2.05-7.95z"/></svg></div>
+        <div class="nmeta">
+          <span class="ntype">Network Security Grp</span>
+          <span class="nhost">vm-web-lab-nsg</span>
+          <span class="nip">Allow-SSH 22</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- vm-web-lab box -->
+    <div class="box" id="azvm" style="left:1356px; top:684px; width:324px; height:248px;">
+      <div class="box-head">
+        <div class="logo-tile"><img data-slug="ubuntu" data-color="E95420" alt="Ubuntu"/><span class="mono">VM</span></div>
+        <div>
+          <div class="box-title">vm-web-lab</div>
+          <div class="box-meta">Ubuntu 24.04 · 10.20.10.4 · snet-vm /24</div>
+        </div>
+        <span class="box-badge">B2ats_v2</span>
+      </div>
+      <span class="clab">Services</span>
+      <div class="chips">
+        <span class="chip"><img data-slug="nginx" data-color="009639" alt="Nginx"/><b>Nginx</b> · portfolio</span>
+        <span class="chip"><img data-slug="docker" data-color="2496ED" alt="Docker"/>Docker</span>
+        <span class="chip"><img data-slug="prometheus" data-color="E6522C" alt="Prometheus"/>Node-Exporter</span>
+      </div>
+      <span class="clab" style="margin-top:11px;">Behind</span>
+      <div class="chips">
+        <span class="chip"><span class="dot" style="background:var(--violet)"></span>NAT Gateway egress</span>
+        <span class="chip"><span class="dot" style="background:var(--violet)"></span>NSG inbound</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-label="Device configuration">
+  <div class="dr-head">
+    <div class="dr-logo" id="drLogo"></div>
+    <div class="dr-titles">
+      <div class="dr-type" id="drType"></div>
+      <div class="dr-host" id="drHost"></div>
+      <div class="dr-ip" id="drIp"></div>
+    </div>
+    <button class="dr-close" id="drClose" aria-label="Close">✕</button>
+  </div>
+  <div class="dr-body" id="drBody"></div>
+  <div class="dr-refs" id="drRefs"></div>
+</aside>
+
+<div class="hint">
+  <span><b>Click</b> a device for its config</span>
+  <span><b>Drag</b> to pan</span>
+  <span><b>Scroll</b> to zoom</span>  <span><b>FIT</b> to reset</span>
+</div>
+
+<div class="topo-tip" id="topotip"></div>
+
+<script>
+/* ---------- vendor logos via Simple Icons CDN, monogram fallback ---------- */
+document.querySelectorAll('img[data-slug]').forEach(img => {
+  const slug = img.dataset.slug, color = img.dataset.color || '999999';
+  img.referrerPolicy = 'no-referrer';
+  img.src = `https://cdn.simpleicons.org/${slug}/${color}`;
+  img.onerror = () => {
+    img.style.display = 'none';
+    const m = img.parentElement.querySelector('.mono');
+    if (m) { m.style.display = 'grid'; m.style.color = '#' + color; }
+  };
+});
+
+/* ---------- connections ---------- */
+const CONNS = [
+  // HQ internal
+  { a:'core', b:'pa',    type:'lan',   pa:'e0/0', pb:'eth1/3', label:'Inside' },
+  { a:'core', b:'ssw',   type:'lacp',  pa:'Po1',  pb:'e0/0-1', label:'LACP · v10·20·99' },
+  { a:'core', b:'asw',   type:'lacp',  pa:'Po2',  pb:'e0/0-1', label:'LACP · v30·99' },
+  { a:'ssw',  b:'proxmox', type:'lan', pa:'e0/3', pb:'vmbr',   label:'trunk' },
+  { a:'asw',  b:'win10', type:'lan',   pa:'e0/2', pb:'',       label:'' },
+  { a:'asw',  b:'vpchq', type:'lan',   pa:'e0/3', pb:'eth0',   label:'' },
+  // Branch internal
+  { a:'bfw',  b:'cbranch', type:'lan', pa:'port3', pb:'e0/0',  label:'LAN' },
+  { a:'cbranch', b:'sbranch', type:'lacp', pa:'e0/2·3', pb:'e0/2·3', label:'' },
+  { a:'sbranch', b:'vpcbr', type:'lan', pa:'e0/0', pb:'eth0',  label:'' },
+  // Edge / Internet
+  { a:'pa',   b:'internet', type:'net', pa:'eth1/1', pb:'', label:'CGNAT', bow:-40 },
+  { a:'bfw',  b:'internet', type:'net', pa:'port1', pb:'', label:'', bow:-40 },
+  // Tunnels
+  { a:'pa',   b:'bfw', type:'ipsec', label:'IPSec IKEv1 · eBGP · 169.1.1.0/30', bow:-150 },
+  { a:'pa',   b:'wireguard', type:'wg', pa:'tunnel.3', pb:'', label:'WireGuard', bow:-70 },
+  { a:'wireguard', b:'azgw', type:'ipsec', label:'IPSec IKEv2 · S2S', bow:-30 },
+  { a:'remote', b:'pa', type:'gp', label:'GlobalProtect', bow:60 },
+  // Azure internal
+  { a:'azgw', b:'azvm', type:'lan2', label:'vnet-lab' },
+  { a:'aznat', b:'azvm', type:'lan2', pa:'', pb:'', label:'' },
+  { a:'aznsg', b:'azvm', type:'lan2', pa:'', pb:'', label:'' },
+];
+
+const TYPE = {
+  lan:   { stroke:'var(--cyan)',     w:1.7, dash:'' },
+  lan2:  { stroke:'var(--violet)',   w:1.5, dash:'4 5' },
+  lacp:  { stroke:'var(--cyan)',     w:3.2, dash:'' },
+  net:   { stroke:'var(--fg-faint)', w:1.5, dash:'5 5' },
+  ipsec: { stroke:'var(--green)',    w:2.2, dash:'' },
+  wg:    { stroke:'var(--amber)',    w:2.2, dash:'' },
+  gp:    { stroke:'var(--cyan)',     w:1.7, dash:'7 6' },
+};
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('wires');
+const canvas = document.getElementById('canvas');
+
+function rectOf(id){
+  const el = document.getElementById(id);
+  const r = el.getBoundingClientRect();
+  const c = canvas.getBoundingClientRect();
+  return {
+    x:(r.left - c.left)/scale, y:(r.top - c.top)/scale,
+    w:r.width/scale, h:r.height/scale,
+    cx:(r.left - c.left)/scale + r.width/scale/2,
+    cy:(r.top - c.top)/scale + r.height/scale/2,
+  };
+}
+function anchor(r, dir){
+  switch(dir){
+    case 'top':    return {x:r.cx, y:r.y};
+    case 'bottom': return {x:r.cx, y:r.y+r.h};
+    case 'left':   return {x:r.x, y:r.cy};
+    case 'right':  return {x:r.x+r.w, y:r.cy};
+  }
+}
+function pickDirs(ra, rb){
+  const dx = rb.cx - ra.cx, dy = rb.cy - ra.cy;
+  if (Math.abs(dx) > Math.abs(dy)){
+    return dx>0 ? ['right','left'] : ['left','right'];
+  }
+  return dy>0 ? ['bottom','top'] : ['top','bottom'];
+}
+
+function drawWires(){
+  svg.innerHTML='';
+  const labelLayer = document.createElementNS(SVGNS,'g');
+  CONNS.forEach(cn=>{
+    const ra=rectOf(cn.a), rb=rectOf(cn.b);
+    const [da,db]=pickDirs(ra,rb);
+    const pa=anchor(ra,da), pb=anchor(rb,db);
+    const t=TYPE[cn.type];
+    // control points
+    const horiz = (da==='left'||da==='right');
+    const k = horiz ? Math.max(40, Math.abs(pb.x-pa.x)*0.4) : Math.max(40, Math.abs(pb.y-pa.y)*0.4);
+    const bow = cn.bow||0;
+    let c1, c2;
+    if (horiz){
+      c1={x:pa.x+(da==='right'?k:-k), y:pa.y+bow};
+      c2={x:pb.x+(db==='right'?k:-k), y:pb.y+bow};
+    } else {
+      c1={x:pa.x+bow, y:pa.y+(da==='bottom'?k:-k)};
+      c2={x:pb.x+bow, y:pb.y+(db==='bottom'?k:-k)};
+    }
+    const d=`M ${pa.x} ${pa.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${pb.x} ${pb.y}`;
+
+    // glow for tunnels
+    if (cn.type==='ipsec'||cn.type==='wg'){
+      const glow=document.createElementNS(SVGNS,'path');
+      glow.setAttribute('d',d); glow.setAttribute('fill','none');
+      glow.setAttribute('stroke',t.stroke); glow.setAttribute('stroke-width', t.w+5);
+      glow.setAttribute('stroke-linecap','round'); glow.setAttribute('opacity','0.14');
+      svg.appendChild(glow);
+    }
+    const path=document.createElementNS(SVGNS,'path');
+    path.setAttribute('d',d); path.setAttribute('fill','none');
+    path.setAttribute('stroke',t.stroke); path.setAttribute('stroke-width',t.w);
+    path.setAttribute('stroke-linecap','round');
+    if(t.dash) path.setAttribute('stroke-dasharray',t.dash);
+    svg.appendChild(path);
+
+    // endpoint nodes (small dots) for physical links
+    if(['lan','lacp'].includes(cn.type)){
+      [pa,pb].forEach(p=>{
+        const dot=document.createElementNS(SVGNS,'circle');
+        dot.setAttribute('cx',p.x); dot.setAttribute('cy',p.y); dot.setAttribute('r','3');
+        dot.setAttribute('fill','var(--cyan)');
+        svg.appendChild(dot);
+      });
+    }
+
+    // port labels near endpoints
+    const mkPort=(p,txt,dir)=>{
+      if(!txt) return;
+      const g=document.createElementNS(SVGNS,'g');
+      const off=14;
+      let lx=p.x, ly=p.y;
+      if(dir==='top') ly-=off; else if(dir==='bottom') ly+=off+4;
+      else if(dir==='left') lx-=off; else lx+=off;
+      const tw=txt.length*5.7+10;
+      const rc=document.createElementNS(SVGNS,'rect');
+      rc.setAttribute('x',lx-tw/2); rc.setAttribute('y',ly-8); rc.setAttribute('width',tw); rc.setAttribute('height',15);
+      rc.setAttribute('rx','4'); rc.setAttribute('fill','var(--bg-2)'); rc.setAttribute('stroke','var(--line-soft)');
+      const tx=document.createElementNS(SVGNS,'text');
+      tx.setAttribute('x',lx); tx.setAttribute('y',ly+2.5); tx.setAttribute('text-anchor','middle');
+      tx.setAttribute('class','port'); tx.textContent=txt;
+      g.appendChild(rc); g.appendChild(tx); labelLayer.appendChild(g);
+    };
+    mkPort(pa,cn.pa,da); mkPort(pb,cn.pb,db);
+
+    // mid label
+    if(cn.label){
+      const mx=(pa.x+pb.x)/2 + (horiz?0:bow*0.6), my=(pa.y+pb.y)/2 + bow*0.7;
+      const tw=cn.label.length*6.0+14;
+      const g=document.createElementNS(SVGNS,'g');
+      const rc=document.createElementNS(SVGNS,'rect');
+      rc.setAttribute('x',mx-tw/2); rc.setAttribute('y',my-10); rc.setAttribute('width',tw); rc.setAttribute('height',19);
+      rc.setAttribute('rx','6'); rc.setAttribute('fill','var(--bg-2)');
+      rc.setAttribute('stroke', t.stroke); rc.setAttribute('stroke-opacity','0.5');
+      const tx=document.createElementNS(SVGNS,'text');
+      tx.setAttribute('x',mx); tx.setAttribute('y',my+3.5); tx.setAttribute('text-anchor','middle');
+      tx.setAttribute('class','wlabel'); tx.setAttribute('fill',t.stroke); tx.textContent=cn.label;
+      g.appendChild(rc); g.appendChild(tx); labelLayer.appendChild(g);
+    }
+  });
+  svg.appendChild(labelLayer);
+}
+
+/* ---------- pan / zoom ---------- */
+const vp=document.getElementById('viewport');
+let scale=1, tx=0, ty=0;
+function clampPan(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const sw=canvas.offsetWidth*scale, sh=canvas.offsetHeight*scale;
+  // keep at least this many px of the canvas inside the viewport on each axis
+  const mx=Math.min(150, sw*0.5), my=Math.min(150, sh*0.5);
+  tx=Math.max(mx-sw, Math.min(vw-mx, tx));
+  ty=Math.max(my-sh, Math.min(vh-my, ty));
+}
+function apply(){ clampPan(); canvas.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const cw=canvas.offsetWidth, ch=canvas.offsetHeight;
+  scale=Math.min(vw/cw, vh/ch)*0.96;
+  tx=(vw-cw*scale)/2; ty=(vh-ch*scale)/2;
+  apply(); drawWires();
+}
+function zoomAt(factor, ox, oy){
+  const ns=Math.min(2.4, Math.max(0.25, scale*factor));
+  tx = ox - (ox-tx)*(ns/scale);
+  ty = oy - (oy-ty)*(ns/scale);
+  scale=ns; apply(); drawWires();
+}
+document.getElementById('zin').onclick =()=>zoomAt(1.2, vp.clientWidth/2, vp.clientHeight/2);
+document.getElementById('zout').onclick=()=>zoomAt(1/1.2, vp.clientWidth/2, vp.clientHeight/2);
+document.getElementById('zfit').onclick=fit;
+
+vp.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.deltaY<0?1.12:1/1.12, e.clientX-r.left, e.clientY-r.top);
+}, {passive:false});
+
+let dragging=false, sx=0, sy=0, _dx=0, _dy=0, _dragMoved=false;
+vp.addEventListener('pointerdown', e=>{
+  if(e.button!==undefined && e.button!==0) return;
+  dragging=true; sx=e.clientX-tx; sy=e.clientY-ty;
+  _dx=e.clientX; _dy=e.clientY; _dragMoved=false;
+  vp.classList.add('grabbing');
+});
+window.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  if(Math.abs(e.clientX-_dx)>4 || Math.abs(e.clientY-_dy)>4) _dragMoved=true;
+  tx=e.clientX-sx; ty=e.clientY-sy; apply();
+});
+window.addEventListener('pointerup', ()=>{ dragging=false; vp.classList.remove('grabbing'); });
+window.addEventListener('pointercancel', ()=>{ dragging=false; vp.classList.remove('grabbing'); });
+
+window.addEventListener('resize', fit);
+window.addEventListener('load', ()=>{ fit(); setTimeout(drawWires, 400); });
+fit();
+setTimeout(drawWires, 100);
+
+/* ===================== CONFIG DRAWER ===================== */
+const CONFIG = {
+  pa: {
+    type: "Palo Alto NGFW · PAN-OS 10", host: "PA-HQ", ip: "mgmt 10.10.99.10 · eth1/1 192.168.1.101",
+    slug: "paloaltonetworks", color: "FA582D", mono: "PA",
+    groups: [
+      { l: "Zones & Interfaces", items: ["<b>Outside</b> (eth1/1), <b>Inside</b> (eth1/3), <b>VPN</b> (tunnel.2), <b>Azure</b> (tunnel.3), MGT", "Zone-based: traffic denied unless an explicit policy permits it"] },
+      { l: "Security Policies", items: ["HQ↔Branch, HQ↔Azure, Inside→Outside", "Implicit <code>deny-all</code> at the base, logged"] },
+      { l: "Security Profiles", items: ["Vulnerability Protection <code>Lab-VP</code>, URL Filtering <code>Lab-URL</code>", "App-ID active (no license needed)"] },
+      { l: "Routing", items: ["OSPF Area 0 neighbor with CoreHQ; redistribute connected", "eBGP <b>AS 65100</b> ↔ FortiGate AS 65200 over the tunnel"] },
+      { l: "VPN", items: ["IPSec S2S → Branch — IKEv1, DES/SHA256/DH14", "IPSec S2S → Azure — IKEv2, AES-256, via WireGuard relay", "GlobalProtect portal + gateway, RADIUS-backed"] },
+      { l: "Services", items: ["RADIUS auth profile → NPS · NTP → <code>10.10.20.51</code>"] },
+    ],
+    refs: ["PA Security Policies & Zones", "PA Security Profiles", "OSPF", "BGP", "IPSec HQ↔Branch", "IPSec HQ↔Azure", "GlobalProtect VPN"],
+  },
+  core: {
+    type: "Cisco L3 Core Switch · IOS", host: "CoreHQ", ip: "10.10.99.1 · SVI gateway · OSPF",
+    slug: "cisco", color: "1BA0D7", mono: "CS",
+    groups: [
+      { l: "VLANs", items: ["10 VM · 20 Container · 30 User · 50 DMZ · 99 Mgmt"] },
+      { l: "Trunking", items: ["<b>LACP Po1</b> → ServerSwitch (v10·20·99)", "<b>LACP Po2</b> → AccessSwitch (v30·99)", "Native VLAN 99 on all trunks"] },
+      { l: "Layer 3 / Routing", items: ["SVI gateways for every VLAN", "OSPF process 1, router-id <code>10.0.0.10</code>, Area 0"] },
+      { l: "DHCP", items: ["Pool <code>User-DHCP</code> for VLAN 30 — gw .1, DNS 10.10.10.10 + 8.8.8.8"] },
+      { l: "Services", items: ["NTP client → 10.10.20.51", "AAA RADIUS (source Vlan99) · SNMP to exporter"] },
+    ],
+    refs: ["VLAN & Trunking", "OSPF", "DHCP", "NTP", "RADIUS / AAA", "SNMP Monitoring"],
+  },
+  ssw: {
+    type: "Cisco L2 Switch · Server side", host: "ServerSwitch", ip: "10.10.99.12",
+    slug: "cisco", color: "1BA0D7", mono: "CS",
+    groups: [
+      { l: "Trunking", items: ["LACP Po1 → CoreHQ — allowed <b>VLAN 10·20·99</b>, native 99"] },
+      { l: "Access", items: ["e0/3 → ServerFarm (Proxmox) VLAN-aware trunk"] },
+    ],
+    refs: ["VLAN & Trunking", "Proxmox VE Setup"],
+  },
+  asw: {
+    type: "Cisco L2 Switch · User side", host: "AccessSwitchHQ", ip: "10.10.99.13",
+    slug: "cisco", color: "1BA0D7", mono: "CS",
+    groups: [
+      { l: "Trunking", items: ["LACP Po2 → CoreHQ — allowed <b>VLAN 30·99</b>, native 99"] },
+      { l: "Access ports", items: ["e0/2 → win10 · e0/3 → VPC — both VLAN 30"] },
+    ],
+    refs: ["VLAN & Trunking", "DHCP"],
+  },
+  proxmox: {
+    type: "Proxmox VE · Hypervisor", host: "ServerFarm", ip: "192.168.1.24 / 10.10.99.18",
+    slug: "proxmox", color: "E57000", mono: "PVE",
+    groups: [
+      { l: "Networking", items: ["<code>vmbr0</code> mgmt/uplink", "<code>vmbr1</code> VLAN-aware bridge (vids 2–4094) — the key that lets VMs reach PNETLab segments"] },
+      { l: "Virtual Machines", items: ["PNETLab (8 vCPU / 16 GB) — all network devices", "k3s-master, k3s-worker1, win-server-2022, TinyLinux"] },
+      { l: "Ops", items: ["vzdump backups for quick rollback"] },
+    ],
+    refs: ["Proxmox VE Setup", "K3s Kubernetes Cluster", "Windows Server"],
+  },
+  k3s: {
+    type: "K3s Kubernetes · v1.34", host: "K3s Cluster", ip: "master 10.10.20.10 · worker 10.10.20.11",
+    slug: "kubernetes", color: "326CE5", mono: "K8s",
+    groups: [
+      { l: "Cluster", items: ["Flannel VXLAN CNI · Traefik disabled (avoids MetalLB conflict)"] },
+      { l: "LoadBalancer", items: ["<b>MetalLB</b> L2 pool <code>10.10.20.50–.59</code>"] },
+      { l: "Services (LoadBalancer IPs)", items: ["NTP .51 · Prometheus .54 · Grafana .53", "Alertmanager .52 · SNMP-Exporter .55 · Dashboard .50"] },
+    ],
+    refs: ["K3s Kubernetes Cluster", "NTP Infrastructure", "Prometheus & Grafana", "SNMP Monitoring", "Grafana Dashboards"],
+  },
+  winserver: {
+    type: "Windows Server 2022 · VM 103", host: "win-server", ip: "win-server.ilwij.lab · 10.10.10.10",
+    mono: "WS",
+    groups: [
+      { l: "Active Directory (AD DS)", items: ["Forest <code>ilwij.lab</code>", "Users ilham · lab · VPN01 · VPN02 · groups infra-admins / readonly"] },
+      { l: "DNS", items: ["Authoritative forward zone ilwij.lab"] },
+      { l: "NPS · RADIUS", items: ["7 network devices registered as clients", "Network policy by AD group → Service-Type Administrative"] },
+      { l: "Also", items: ["NTP source · GPO · File Server"] },
+    ],
+    refs: ["Windows Server — AD, DNS, NPS", "RADIUS / AAA", "NTP Infrastructure"],
+  },
+  win10: {
+    type: "Windows 10 Client · VLAN 30", host: "win10", ip: "10.10.30.21 (DHCP)",
+    mono: "W10",
+    groups: [
+      { l: "Identity", items: ["Domain-joined to <code>ilwij.lab</code> · auth via NPS"] },
+      { l: "Services", items: ["NTP via <code>w32tm</code> → 10.10.20.51", "GlobalProtect client for remote access"] },
+    ],
+    refs: ["DHCP", "Windows Server", "GlobalProtect VPN"],
+  },
+  vpchq: {
+    type: "Test Client · VLAN 30", host: "VPC (HQ)", ip: "10.10.30.0/24",
+    mono: "PC",
+    groups: [{ l: "Role", items: ["DHCP client · cross-site ping / reachability verification endpoint"] }],
+    refs: ["DHCP", "IPSec HQ↔Branch"],
+  },
+  bfw: {
+    type: "FortiGate NGFW · FortiOS 7.6", host: "Branch-FW", ip: "10.10.199.2 · port1 192.168.1.110",
+    slug: "fortinet", color: "EE3124", mono: "FG",
+    groups: [
+      { l: "Interfaces / Zones", items: ["port1 <b>wan</b> · port3 <b>lan</b> · IPSEC-TUNNEL-HQ <b>vpn</b> (169.1.1.2)"] },
+      { l: "VPN", items: ["IPSec S2S → HQ — IKEv1, DES/SHA256/DH14"] },
+      { l: "Routing", items: ["eBGP <b>AS 65200</b> ↔ PA-HQ over tunnel; redistribute connected"] },
+      { l: "Policies", items: ["Branch→HQ · HQ→Branch · Branch→Internet (NAT)"] },
+      { l: "Services", items: ["RADIUS → NPS · NTP → 10.10.20.51 · SNMP"] },
+    ],
+    refs: ["Fortinet Security Policies & Zones", "IPSec HQ↔Branch", "BGP", "RADIUS / AAA", "NTP", "SNMP Monitoring"],
+  },
+  cbranch: {
+    type: "Cisco L3 · Branch core", host: "Core-Branch", ip: "10.10.199.1",
+    slug: "cisco", color: "1BA0D7", mono: "CS",
+    groups: [
+      { l: "VLANs", items: ["40 Branch-User · 199 Branch-Mgmt"] },
+      { l: "Uplinks", items: ["port3 ← FortiGate (lan) · trunk to SW-Branch"] },
+    ],
+    refs: ["VLAN & Trunking", "Fortinet Security Policies & Zones"],
+  },
+  sbranch: {
+    type: "Cisco L2 · Branch access", host: "SW-Branch", ip: "10.10.199.10",
+    slug: "cisco", color: "1BA0D7", mono: "CS",
+    groups: [{ l: "Access", items: ["e0/0 → VPC (VLAN 40) · trunk to Core-Branch"] }],
+    refs: ["VLAN & Trunking"],
+  },
+  vpcbr: {
+    type: "Branch Client · VLAN 40", host: "VPC (Branch)", ip: "10.10.40.0/24",
+    mono: "PC",
+    groups: [{ l: "Role", items: ["DHCP client · used to verify cross-site tunnel reachability to HQ"] }],
+    refs: ["IPSec HQ↔Branch", "BGP over IPSec"],
+  },
+  wireguard: {
+    type: "WireGuard Relay · S-Net VM", host: "wireguard", ip: "149.129.220.212 (public)",
+    slug: "wireguard", color: "88171A", mono: "WG",
+    groups: [
+      { l: "Why", items: ["Home ISP is behind <b>CGNAT</b> — no real public IP. This VM is the public anchor."] },
+      { l: "Tunnel", items: ["wg0 <code>10.1.1.0/30</code> · ListenPort 41411 · MTU 1300 (double-encap headroom)"] },
+      { l: "NAT", items: ["iptables SNAT/MASQUERADE → Azure VPN GW (20.11.94.68)"] },
+      { l: "Forwards", items: ["IPSec IKE/ESP + GlobalProtect 443 → PA-HQ inside CGNAT"] },
+    ],
+    refs: ["IPSec HQ↔Azure + WireGuard CGNAT", "GlobalProtect VPN"],
+  },
+  azgw: {
+    type: "Azure VPN Gateway · VpnGw1", host: "vpngw-lab", ip: "20.11.94.68 · GatewaySubnet /27",
+    mono: "AZ",
+    groups: [
+      { l: "Type", items: ["Route-based · IKEv2"] },
+      { l: "Connection IPSec_Palo", items: ["AES-256 / SHA-256 / DHGroup14"] },
+      { l: "Local Network Gateway", items: ["peer 149.129.220.212 → HQ spaces 10.10.10/20/30/99.0/24"] },
+    ],
+    refs: ["Azure Hybrid Cloud Setup", "Azure IPSec + WireGuard CGNAT"],
+  },
+  azvm: {
+    type: "Ubuntu 24.04 · Azure VM", host: "vm-web-lab", ip: "10.20.10.4 · snet-vm /24",
+    slug: "ubuntu", color: "E95420", mono: "VM",
+    groups: [
+      { l: "Services", items: ["<b>Nginx</b> (portfolio site) · Docker · Node-Exporter"] },
+      { l: "Network", items: ["Behind NAT Gateway egress + NSG (Allow-SSH 22)"] },
+    ],
+    refs: ["Docker Setup (Azure VM)", "Azure Hybrid Cloud Setup"],
+  },
+  remote: {
+    type: "Remote Access · GlobalProtect", host: "Remote User", ip: "GP client → 149.129.220.212",
+    mono: "GP",
+    groups: [
+      { l: "Flow", items: ["GP portal/gateway published via WireGuard relay", "Authenticates against RADIUS (AD) · subject to PA zone policies & App-ID"] },
+    ],
+    refs: ["GlobalProtect VPN"],
+  },
+};
+
+const drawer = document.getElementById('drawer');
+const scrim  = document.getElementById('scrim');
+const drLogo = document.getElementById('drLogo');
+const drType = document.getElementById('drType');
+const drHost = document.getElementById('drHost');
+const drIp   = document.getElementById('drIp');
+const drBody = document.getElementById('drBody');
+const drRefs = document.getElementById('drRefs');
+let selEl = null;
+
+/* "Documented in" ref-label → Phase 1 article slug (matches phase1-articles.js) */
+const REF_SLUG = {
+  "VLAN & Trunking": "vlan-trunking",
+  "OSPF": "ospf",
+  "BGP": "bgp",
+  "BGP over IPSec": "bgp-over-ipsec",
+  "IPSec HQ↔Branch": "ipsec-hq-branch",
+  "IPSec HQ↔Azure": "ipsec-azure",
+  "IPSec HQ↔Azure + WireGuard CGNAT": "ipsec-azure",
+  "DHCP": "dhcp",
+  "NTP": "ntp",
+  "NTP Infrastructure": "ntp",
+  "PA Security Policies & Zones": "pa-security-policies",
+  "PA Security Profiles": "pa-security-profiles",
+  "Fortinet Security Policies & Zones": "forti-security-policies",
+  "RADIUS / AAA": "radius-aaa",
+  "GlobalProtect VPN": "globalprotect",
+  "Proxmox VE Setup": "proxmox",
+  "K3s Kubernetes Cluster": "k3s",
+  "Windows Server": "windows-server",
+  "Windows Server — AD, DNS, NPS": "windows-server",
+  "Docker Setup (Azure VM)": "docker",
+  "Azure Hybrid Cloud Setup": "azure-hybrid",
+  "Azure IPSec + WireGuard CGNAT": "azure-ipsec",
+  "Prometheus & Grafana": "prometheus-grafana",
+  "SNMP Monitoring": "snmp",
+  "Grafana Dashboards": "grafana-dashboards",
+};
+function reftag(label){
+  const slug = REF_SLUG[label];
+  return slug
+    ? '<a class="dr-reftag" target="_top" href="article.html?a='+slug+'">'+label+'</a>'
+    : '<span class="dr-reftag">'+label+'</span>';
+}
+/* robust navigation: works standalone, embedded in an iframe, and inside the sandboxed preview */
+drRefs.addEventListener('click', function(e){
+  const a = e.target.closest('a.dr-reftag');
+  if(!a) return;
+  e.preventDefault();
+  const href = a.getAttribute('href');
+  if (window.self !== window.top){
+    try { window.top.location.href = href; return; }   // embedded on a real page → navigate host
+    catch(_){ window.open(href, '_blank'); return; }     // cross-origin (preview) → new tab
+  }
+  window.location.href = href;                            // standalone → navigate self
+});
+
+function openCfg(key, el){
+  const c = CONFIG[key];
+  if(!c) return;
+  drType.textContent = c.type;
+  drHost.textContent = c.host;
+  drIp.textContent   = c.ip || '';
+  // logo
+  if(c.slug){
+    drLogo.innerHTML = '<img referrerpolicy="no-referrer" src="https://cdn.simpleicons.org/'+c.slug+'/'+(c.color||'999999')+'" alt=""/><span class="mono">'+(c.mono||'')+'</span>';
+    const img = drLogo.querySelector('img'), m = drLogo.querySelector('.mono');
+    img.onerror = ()=>{ img.style.display='none'; m.style.display='grid'; m.style.color='#'+(c.color||'999999'); };
+  } else {
+    drLogo.innerHTML = '<span class="mono" style="display:grid;color:var(--cyan)">'+(c.mono||'·')+'</span>';
+  }
+  drBody.innerHTML = c.groups.map(g =>
+    '<div class="cfg-group"><div class="cfg-glabel">'+g.l+'</div><ul class="cfg-items">'+
+    g.items.map(i=>'<li>'+i+'</li>').join('')+'</ul></div>'
+  ).join('');
+  drRefs.innerHTML = c.refs && c.refs.length
+    ? '<div class="rl">Documented in · click to read</div><div class="dr-reftags">'+c.refs.map(reftag).join('')+'</div>'
+    : '';
+  drawer.classList.add('open');
+  scrim.classList.add('open');
+  if(selEl) selEl.classList.remove('sel');
+  selEl = el; if(el) el.classList.add('sel');
+}
+function closeCfg(){
+  drawer.classList.remove('open');
+  scrim.classList.remove('open');
+  if(selEl){ selEl.classList.remove('sel'); selEl = null; }
+}
+
+document.getElementById('drClose').onclick = closeCfg;
+scrim.onclick = closeCfg;
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeCfg(); });
+
+/* hover tooltip + click → config (drag-move tracked in the pan handler above) */
+canvas.addEventListener('click', e=>{
+  if(_dragMoved) return;
+  const sub = e.target.closest('.subcard[data-cfg]');
+  let key=null, el=null;
+  if(sub){ key=sub.dataset.cfg; el=sub; }
+  else { const node = e.target.closest('.node, .box'); if(node){ key=node.id; el=node; } }
+  if(key && CONFIG[key]) openCfg(key, el);
+});
+
+const tip=document.getElementById('topotip');
+function tipFor(target){
+  const sub=target.closest('.subcard[data-cfg]');
+  if(sub) return sub.dataset.cfg;
+  const node=target.closest('.node, .box');
+  return node ? node.id : null;
+}
+vp.addEventListener('pointermove', e=>{
+  if(dragging){ tip.classList.remove('show'); return; }
+  const key=tipFor(e.target);
+  const c = key && CONFIG[key];
+  if(c){
+    tip.innerHTML =
+      '<div class="tt-name">'+(c.host||'')+'</div>'+
+      '<div class="tt-type">'+(c.type||'')+'</div>'+
+      (c.ip ? '<div class="tt-ip">'+c.ip+'</div>' : '')+
+      '<div class="tt-go">click for full config</div>';
+    const flip = e.clientY < 130;
+    tip.style.transform = flip ? 'translate(-50%, 18px)' : 'translate(-50%, calc(-100% - 16px))';
+    tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px';
+    tip.classList.add('show');
+  } else {
+    tip.classList.remove('show');
+  }
+});
+vp.addEventListener('pointerleave', ()=>tip.classList.remove('show'));
+vp.addEventListener('pointerdown', ()=>tip.classList.remove('show'));
+</script>
+</body>
+</html>

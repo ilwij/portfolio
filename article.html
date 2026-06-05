@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lab · Phase 1 — Article</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="lab.css" />
+<link rel="stylesheet" href="article.css" />
+</head>
+<body>
+<div class="read-bar" id="readbar"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <a class="brand-mark" href="Portfolio.html">IW</a>
+    <span class="brand-path">
+      <a href="Portfolio.html">ilham</a><span class="sep">/</span><a href="Lab.html">lab</a><span class="sep">/</span><a href="Lab Phase 1.html">phase 1</a><span class="sep">/</span><span class="here" id="crumb-slug">article</span>
+    </span>
+  </div>
+  <nav class="topnav">
+    <a href="Portfolio.html#about">About</a>
+    <a href="Portfolio.html#skills">Skills</a>
+    <a href="Portfolio.html#experience">Experience</a>
+    <a href="Portfolio.html#contact">Contact</a>
+    <a href="Lab.html" class="lab-link active">Lab <span class="arw">↗</span></a>
+  </nav>
+</header>
+
+<main id="app">
+  <div class="art-msg">Loading build write-up…</div>
+</main>
+
+<footer class="site-foot">
+  <span class="fl">© 2026 <b>Ilham Wijaya</b> — Lab · Phase 1</span>
+  <span class="fr">Space Grotesk · IBM Plex Mono · served on <b>nginx</b></span>
+</footer>
+
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" id="lbClose" aria-label="Close">✕</button>
+  <button class="lb-arrow lb-prev" id="lbPrev" aria-label="Previous">‹</button>
+  <button class="lb-arrow lb-next" id="lbNext" aria-label="Next">›</button>
+  <img id="lbImg" alt="" />
+  <div class="lb-cap" id="lbCap"></div>
+</div>
+
+<script src="phase1-articles.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ARTICLES = window.PHASE1_ARTICLES || [];
+  var DIFF = { Beginner: 1, Intermediate: 2, Advanced: 3, Expert: 4 };
+
+  function qp(name) {
+    return new URLSearchParams(location.search).get(name);
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function escAttr(s) {
+    return esc(s).replace(/"/g, "&quot;");
+  }
+  function plain(s) {
+    return String(s).replace(/[`*]/g, "");
+  }
+  function slugify(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  function inline(s) {
+    s = esc(s);
+    s = s.replace(/`([^`]+)`/g, function (m, c) { return "<code>" + c + "</code>"; });
+    s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return s;
+  }
+
+  /* ---- markdown → article body ---- */
+  function codeCard(lang, code) {
+    var label = lang ? lang : "shell";
+    return '<div class="code-card"><div class="code-bar">' +
+      '<span class="dots"><i></i><i></i><i></i></span>' +
+      '<span class="lang">' + esc(label) + '</span>' +
+      '<button class="code-copy" type="button"><span class="ic">⧉</span><span class="lbl">Copy</span></button>' +
+      '</div><pre><code>' + esc(code) + '</code></pre></div>';
+  }
+  function diagramCard(text) {
+    return '<div class="diagram-note">' +
+      '<span class="dn-label"><span class="ic">◈</span>Topology context</span>' +
+      '<p class="dn-text">' + inline(text.trim()) + '</p>' +
+      '<a class="dn-open" href="Lab Topology.html" target="_blank" rel="noopener">Open interactive topology ↗</a>' +
+      '</div>';
+  }
+  function evFig(file, cap) {
+    var src = "screenshots/phase1/" + file;
+    var idm = file.replace(/\.png$/i, "").match(/(\d+)$/);
+    var id = idm ? idm[1] : "";
+    return '<figure class="ev-fig">' +
+      '<div class="ev-shot" data-full="' + escAttr(src) + '" data-cap="' + escAttr(plain(cap)) + '">' +
+      '<img src="' + escAttr(src) + '" alt="' + escAttr(plain(cap)) + '" loading="lazy"></div>' +
+      '<figcaption class="ev-cap"><span class="ev-id">SS ' + id + '</span><span>' + inline(cap) + '</span></figcaption>' +
+      '</figure>';
+  }
+  function renderTable(rows) {
+    var cells = function (r) {
+      return r.replace(/^\|/, "").replace(/\|\s*$/, "").split("|").map(function (c) { return c.trim(); });
+    };
+    var head = cells(rows[0]);
+    var body = rows.slice(2);
+    var h = '<div class="art-table-wrap"><table class="art-table"><thead><tr>' +
+      head.map(function (c) { return "<th>" + inline(c) + "</th>"; }).join("") + "</tr></thead><tbody>";
+    body.forEach(function (r) {
+      var c = cells(r);
+      h += "<tr>" + c.map(function (x) { return "<td>" + inline(x) + "</td>"; }).join("") + "</tr>";
+    });
+    return h + "</tbody></table></div>";
+  }
+
+  function renderBody(md) {
+    var lines = md.split("\n");
+    var html = "", i = 0, sectionOpen = false, toc = [];
+    function closeSection() { if (sectionOpen) { html += "</section>"; sectionOpen = false; } }
+    var isBlockStart = function (l) {
+      return /^(###\s|```|\||[-*]\s|##\s|---\s*$)/.test(l) || /^\*\*\[/.test(l) || /^\*\*(.+)\*\*\s*$/.test(l);
+    };
+
+    while (i < lines.length) {
+      var line = lines[i];
+      var h = line.match(/^###\s+(.+)/);
+      if (h) {
+        closeSection();
+        var title = h[1].trim();
+        var id = slugify(title);
+        toc.push({ id: id, title: title });
+        html += '<section id="' + id + '"><h3 class="art-h">' + inline(title) + "</h3>";
+        sectionOpen = true; i++; continue;
+      }
+      if (/^---\s*$/.test(line) || /^\s*$/.test(line)) { i++; continue; }
+      if (/^\*\*(Slug|Category|Difficulty):\*\*/.test(line)) { i++; continue; }
+      if (/^##\s/.test(line)) { i++; continue; }
+
+      var f = line.match(/^```(\w*)/);
+      if (f) {
+        i++; var code = [];
+        while (i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i++; }
+        i++;
+        html += codeCard(f[1] || "", code.join("\n"));
+        continue;
+      }
+      var d = line.match(/^\*\*\[DIAGRAM:\s*([\s\S]*?)\]\*\*\s*$/);
+      if (d) { html += diagramCard(d[1]); i++; continue; }
+      var ss = line.match(/^\*\*\[SS:\s*([^\]]+)\]\*\*\s*$/);
+      if (ss) {
+        var file = ss[1].trim(); i++;
+        while (i < lines.length && /^\s*$/.test(lines[i])) i++;
+        var cap = "";
+        if (i < lines.length && /^\*.*\*\s*$/.test(lines[i].trim())) {
+          cap = lines[i].trim().replace(/^\*+/, "").replace(/\*+$/, ""); i++;
+        }
+        html += evFig(file, cap);
+        continue;
+      }
+      if (/^\|/.test(line)) {
+        var tbl = [];
+        while (i < lines.length && /^\|/.test(lines[i])) { tbl.push(lines[i]); i++; }
+        html += renderTable(tbl);
+        continue;
+      }
+      if (/^[-*]\s+/.test(line)) {
+        var items = [];
+        while (i < lines.length && /^[-*]\s+/.test(lines[i])) { items.push(lines[i].replace(/^[-*]\s+/, "")); i++; }
+        html += "<ul>" + items.map(function (it) { return "<li>" + inline(it) + "</li>"; }).join("") + "</ul>";
+        continue;
+      }
+      var bl = line.match(/^\*\*(.+)\*\*\s*$/);
+      if (bl) { html += '<p class="block-label"><strong>' + inline(bl[1]) + "</strong></p>"; i++; continue; }
+
+      var para = [line]; i++;
+      while (i < lines.length && !/^\s*$/.test(lines[i]) && !isBlockStart(lines[i])) { para.push(lines[i]); i++; }
+      html += "<p>" + inline(para.join(" ")) + "</p>";
+    }
+    closeSection();
+    return { html: html, toc: toc };
+  }
+
+  function parseArticles(md) {
+    var parts = md.split(/\n(?=## Article )/);
+    var map = {};
+    parts.forEach(function (block) {
+      var slugM = block.match(/\*\*Slug:\*\*\s*`\/lab\/phase1\/([^`]+)`/);
+      if (!slugM) return;
+      map[slugM[1].trim()] = block;
+    });
+    return map;
+  }
+
+  function diffDots(diff) {
+    var n = DIFF[diff] || 0, dots = "";
+    for (var k = 0; k < 4; k++) dots += '<i class="' + (k < n ? "on" : "") + '"></i>';
+    return '<span class="art-diff"><span class="lvl">' + dots + "</span>" + esc(diff) + "</span>";
+  }
+
+  function render(slug, bodyMd) {
+    var idx = ARTICLES.findIndex(function (a) { return a.slug === slug; });
+    var meta = ARTICLES[idx];
+    var parsed = renderBody(bodyMd);
+
+    document.title = "Lab · Phase 1 — " + meta.title;
+    document.getElementById("crumb-slug").textContent = meta.title;
+
+    var toc = parsed.toc.map(function (t, k) {
+      return '<li><a href="#' + t.id + '" data-id="' + t.id + '"><span class="ti">' +
+        String(k + 1).padStart(2, "0") + "</span><span>" + esc(t.title) + "</span></a></li>";
+    }).join("");
+
+    var prev = ARTICLES[idx - 1], next = ARTICLES[idx + 1];
+    var navHtml =
+      (prev ? '<a class="prev" href="article.html?a=' + prev.slug + '"><span class="dir">‹ Previous</span><span class="nt">' + esc(prev.title) + "</span></a>"
+            : '<span class="ph"></span>') +
+      (next ? '<a class="next" href="article.html?a=' + next.slug + '"><span class="dir">Next ›</span><span class="nt">' + esc(next.title) + "</span></a>"
+            : '<span class="ph"></span>');
+
+    var html =
+      '<section class="art-hero"><div class="art-hero-inner">' +
+        '<div class="art-crumbs"><a href="Lab.html">The Lab</a><span class="sep">/</span>' +
+          '<a href="Lab Phase 1.html">Phase 1</a><span class="sep">/</span>' +
+          '<a href="Lab Phase 1.html#builds">' + esc(meta.cat) + '</a></div>' +
+        '<div class="art-tagrow"><span class="art-cat">' + esc(meta.cat) + "</span>" +
+          diffDots(meta.diff) +
+          '<span class="art-num">Build ' + esc(meta.n) + " / 22</span></div>" +
+        '<h1 class="art-title">' + esc(meta.title) + "</h1>" +
+        '<div class="art-path"><span class="pre">~/lab/phase1/</span>' + esc(meta.slug) + "</div>" +
+      "</div></section>" +
+      '<div class="art-layout">' +
+        '<aside class="art-toc"><div class="art-toc-label">On this page</div><ul>' + toc + "</ul>" +
+          '<div class="art-toc-foot"><a href="Lab Phase 1.html#builds">⌂ All Phase 1 builds</a></div>' +
+        "</aside>" +
+        '<article class="art-body">' + parsed.html + "</article>" +
+      "</div>" +
+      '<nav class="art-nav">' + navHtml + "</nav>";
+
+    document.getElementById("app").innerHTML = html;
+    wire();
+    window.scrollTo(0, 0);
+  }
+
+  /* ---- interactions ---- */
+  var shots = [], lbIndex = 0;
+  function wire() {
+    // copy buttons
+    document.querySelectorAll(".code-copy").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var code = btn.closest(".code-card").querySelector("pre").innerText;
+        navigator.clipboard.writeText(code).then(function () {
+          btn.classList.add("ok");
+          btn.querySelector(".lbl").textContent = "Copied";
+          setTimeout(function () { btn.classList.remove("ok"); btn.querySelector(".lbl").textContent = "Copy"; }, 1600);
+        });
+      });
+    });
+    // lightbox
+    shots = Array.prototype.slice.call(document.querySelectorAll(".ev-shot"));
+    shots.forEach(function (el, k) {
+      el.addEventListener("click", function () { openLb(k); });
+    });
+    // toc scroll-spy
+    var links = document.querySelectorAll(".art-toc a[data-id]");
+    var secs = document.querySelectorAll(".art-body > section");
+    if ("IntersectionObserver" in window && secs.length) {
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) {
+            links.forEach(function (l) { l.classList.toggle("active", l.getAttribute("data-id") === e.target.id); });
+          }
+        });
+      }, { rootMargin: "-92px 0px -65% 0px", threshold: 0 });
+      secs.forEach(function (s) { obs.observe(s); });
+    }
+  }
+
+  var lb = document.getElementById("lightbox"),
+      lbImg = document.getElementById("lbImg"),
+      lbCap = document.getElementById("lbCap");
+  function openLb(k) {
+    lbIndex = k;
+    var el = shots[k];
+    lbImg.src = el.getAttribute("data-full");
+    lbCap.textContent = el.getAttribute("data-cap") || "";
+    lb.classList.add("open");
+  }
+  function stepLb(dir) {
+    if (!shots.length) return;
+    lbIndex = (lbIndex + dir + shots.length) % shots.length;
+    openLb(lbIndex);
+  }
+  function closeLb() { lb.classList.remove("open"); lbImg.src = ""; }
+  document.getElementById("lbClose").addEventListener("click", closeLb);
+  document.getElementById("lbPrev").addEventListener("click", function (e) { e.stopPropagation(); stepLb(-1); });
+  document.getElementById("lbNext").addEventListener("click", function (e) { e.stopPropagation(); stepLb(1); });
+  lb.addEventListener("click", function (e) { if (e.target === lb) closeLb(); });
+  document.addEventListener("keydown", function (e) {
+    if (!lb.classList.contains("open")) return;
+    if (e.key === "Escape") closeLb();
+    else if (e.key === "ArrowLeft") stepLb(-1);
+    else if (e.key === "ArrowRight") stepLb(1);
+  });
+
+  // progress bar
+  var bar = document.getElementById("readbar");
+  window.addEventListener("scroll", function () {
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + "%";
+  }, { passive: true });
+
+  /* ---- boot ---- */
+  var slug = qp("a") || (ARTICLES[0] && ARTICLES[0].slug);
+  if (!ARTICLES.some(function (a) { return a.slug === slug; })) {
+    document.getElementById("app").innerHTML =
+      '<div class="art-msg">Build not found: <b>' + esc(slug || "") + "</b>. <a href=\"Lab Phase 1.html#builds\" style=\"color:var(--cyan)\">Back to all builds →</a></div>";
+    return;
+  }
+  fetch("lab-articles/phase1.md")
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then(function (md) {
+      var map = parseArticles(md);
+      if (!map[slug]) throw new Error("missing block");
+      render(slug, map[slug]);
+    })
+    .catch(function (err) {
+      document.getElementById("app").innerHTML =
+        '<div class="art-msg">Could not load write-up content (<b>' + esc(String(err.message || err)) +
+        "</b>). The article source is at <code>lab-articles/phase1.md</code>.</div>";
+    });
+})();
+</script>
+</body>
+</html>
