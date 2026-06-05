@@ -5,14 +5,14 @@ const SK_GROUPS = [
   {
     cat: "Network",
     skills: [
-      { n: "VLAN & Trunking", lvl: 3, lab: true },
-      { n: "NAT", lvl: 3, lab: true },
-      { n: "DHCP", lvl: 3, lab: true },
-      { n: "LACP", lvl: 2, lab: true },
-      { n: "OSPF", lvl: 2, lab: true },
-      { n: "BGP", lvl: 2, lab: true },
-      { n: "BGP over IPSec", lvl: 2, lab: true },
-      { n: "IPSec Site-to-Site VPN", lvl: 2, lab: true },
+      { n: "VLAN & Trunking", lvl: 3, lab: true, slug: "vlan-trunking" },
+      { n: "NAT", lvl: 3, lab: true, slug: "pa-security-policies" },
+      { n: "DHCP", lvl: 3, lab: true, slug: "dhcp" },
+      { n: "LACP", lvl: 2, lab: true, slug: "vlan-trunking" },
+      { n: "OSPF", lvl: 2, lab: true, slug: "ospf" },
+      { n: "BGP", lvl: 2, lab: true, slug: "bgp" },
+      { n: "BGP over IPSec", lvl: 2, lab: true, slug: "bgp-over-ipsec" },
+      { n: "IPSec Site-to-Site VPN", lvl: 2, lab: true, slug: "ipsec-hq-branch" },
       { n: "SD-WAN (failover & load balancing)", lvl: 2, lab: false },
       { n: "Wireless LAN Management (WLC / Master AP)", lvl: 2, lab: false },
       { n: "HA / Stacking", lvl: 2, lab: false },
@@ -27,14 +27,14 @@ const SK_GROUPS = [
   {
     cat: "Network Security",
     skills: [
-      { n: "Firewall Policy", lvl: 3, lab: true },
-      { n: "NAT", lvl: 3, lab: true },
-      { n: "Zone-Based Firewall", lvl: 2, lab: true },
-      { n: "Policy Optimization", lvl: 2, lab: true },
-      { n: "IPSec Site-to-Site VPN", lvl: 2, lab: true },
-      { n: "Remote Access VPN", lvl: 2, lab: true },
-      { n: "Security Profiles (IPS, App-ID, URL Filtering)", lvl: 2, lab: true },
-      { n: "RADIUS / AAA", lvl: 2, lab: true },
+      { n: "Firewall Policy", lvl: 3, lab: true, slug: "pa-security-policies" },
+      { n: "NAT", lvl: 3, lab: true, slug: "pa-security-policies" },
+      { n: "Zone-Based Firewall", lvl: 2, lab: true, slug: "forti-security-policies" },
+      { n: "Policy Optimization", lvl: 2, lab: true, slug: "pa-security-profiles" },
+      { n: "IPSec Site-to-Site VPN", lvl: 2, lab: true, slug: "ipsec-hq-branch" },
+      { n: "Remote Access VPN", lvl: 2, lab: true, slug: "globalprotect" },
+      { n: "Security Profiles (IPS, App-ID, URL Filtering)", lvl: 2, lab: true, slug: "pa-security-profiles" },
+      { n: "RADIUS / AAA", lvl: 2, lab: true, slug: "radius-aaa" },
       { n: "High Availability", lvl: 2, lab: false },
       { n: "FSSO", lvl: 2, lab: false },
       { n: "Virtual System / Domain", lvl: 2, lab: false },
@@ -49,13 +49,13 @@ const SK_GROUPS = [
   {
     cat: "Server & Virtualization",
     skills: [
-      { n: "Virtualization", lvl: 2, lab: true },
-      { n: "Linux Administration", lvl: 2, lab: true },
-      { n: "Kubernetes / k3s", lvl: 2, lab: true },
-      { n: "Windows Server", lvl: 2, lab: true },
-      { n: "Active Directory", lvl: 2, lab: true },
-      { n: "DNS & NTP", lvl: 2, lab: true },
-      { n: "Docker", lvl: 1, lab: true },
+      { n: "Virtualization", lvl: 2, lab: true, slug: "proxmox" },
+      { n: "Linux Administration", lvl: 2, lab: true, slug: "k3s" },
+      { n: "Kubernetes / k3s", lvl: 2, lab: true, slug: "k3s" },
+      { n: "Windows Server", lvl: 2, lab: true, slug: "windows-server" },
+      { n: "Active Directory", lvl: 2, lab: true, slug: "windows-server" },
+      { n: "DNS & NTP", lvl: 2, lab: true, slug: "ntp" },
+      { n: "Docker", lvl: 1, lab: true, slug: "docker" },
       { n: "Group Policy (GPO)", lvl: 1, lab: false },
       { n: "Storage Management", lvl: 1, lab: false },
       { n: "Backup & Recovery", lvl: 1, lab: false },
@@ -75,11 +75,11 @@ const SK_GROUPS = [
   {
     cat: "Cloud",
     skills: [
-      { n: "Virtual Network (VNet)", lvl: 1, lab: true },
-      { n: "VPN Gateway (Site-to-Site)", lvl: 1, lab: true },
-      { n: "Virtual Machines", lvl: 1, lab: true },
-      { n: "Hybrid Cloud Connectivity", lvl: 1, lab: true },
-      { n: "NSG (Network Security Group)", lvl: 1, lab: true },
+      { n: "Virtual Network (VNet)", lvl: 1, lab: true, slug: "azure-hybrid" },
+      { n: "VPN Gateway (Site-to-Site)", lvl: 1, lab: true, slug: "azure-ipsec" },
+      { n: "Virtual Machines", lvl: 1, lab: true, slug: "azure-hybrid" },
+      { n: "Hybrid Cloud Connectivity", lvl: 1, lab: true, slug: "azure-hybrid" },
+      { n: "NSG (Network Security Group)", lvl: 1, lab: true, slug: "azure-hybrid" },
     ],
     tools: [
       { sub: null, items: [
@@ -90,9 +90,9 @@ const SK_GROUPS = [
   {
     cat: "Monitoring",
     skills: [
-      { n: "NMS Deployment & Management", lvl: 2, lab: true },
-      { n: "Network Monitoring (SNMP, Traps)", lvl: 2, lab: true },
-      { n: "Dashboard & Visualization", lvl: 2, lab: true },
+      { n: "NMS Deployment & Management", lvl: 2, lab: true, slug: "prometheus-grafana" },
+      { n: "Network Monitoring (SNMP, Traps)", lvl: 2, lab: true, slug: "snmp" },
+      { n: "Dashboard & Visualization", lvl: 2, lab: true, slug: "grafana-dashboards" },
       { n: "Alerting", lvl: 2, lab: false },
       { n: "Netflow", lvl: 2, lab: false },
     ],
@@ -154,7 +154,10 @@ function SkillCard({ g }) {
         {g.skills.map((s, i) => (
           <div className="sk-row" key={i}>
             <span className="sk-name">{s.n}</span>
-            {s.lab && <span className="lab-chip" title="Lab-backed — write-up available">lab</span>}
+            {s.lab && (s.slug
+              ? <a className="lab-chip" href={"article.html?a=" + s.slug} target="_blank" rel="noopener" title="Lab-backed — buka write-up">lab ↗</a>
+              : <span className="lab-chip" title="Lab-backed — write-up available">lab</span>
+            )}
             <Lvl n={s.lvl} />
           </div>
         ))}

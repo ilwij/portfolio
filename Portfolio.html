@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Ilham Wijaya — IT Infrastructure</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -592,6 +595,13 @@
     border-radius: 5px;
     background: color-mix(in oklch, var(--green) 8%, transparent);
     flex-shrink: 0;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  a.lab-chip:hover {
+    background: color-mix(in oklch, var(--green) 18%, transparent);
+    border-color: color-mix(in oklch, var(--green) 55%, var(--line));
   }
 
   .sk-grid {
@@ -1385,7 +1395,7 @@ function Topbar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <div className="brand-mark">IW</div>
+        <div className="brand-mark"><img src="assets/logo-iw.png" alt="IW" style={{width:"22px",height:"22px",objectFit:"contain"}} /></div>
       </div>
       <nav className="topnav">
         <a href="#about">About</a>
@@ -1413,8 +1423,6 @@ function Hero() {
 
           <div className="meta rise" style={{ animationDelay: ".2s" }}>
             <span><b>IT Infrastructure</b></span>
-            <span className="sep">/</span>
-            <span className="geo">◍ Bekasi, Indonesia</span>
           </div>
 
           <p className="tagline rise" style={{ animationDelay: ".28s" }}>
@@ -1474,7 +1482,6 @@ function About() {
           <div className="about-aside">
             <div className="about-photo">
               <img src="assets/ilham-bw.png" alt="Ilham Wijaya" />
-              <span className="ph-tag"><i></i>Bekasi, ID</span>
             </div>
             <h2 className="about-title">
               I sit at the intersection of <span className="c">technical depth</span> and <span className="g">business awareness</span>.
