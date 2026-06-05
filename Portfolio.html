@@ -640,6 +640,18 @@
     flex: 1;
     line-height: 1.35;
     letter-spacing: -0.005em;
+    text-decoration: none;
+  }
+  a.sk-name--linked {
+    color: var(--cyan);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+  a.sk-name--linked:hover {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in oklch, var(--cyan) 45%, transparent);
   }
 
   .sk-tools { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }

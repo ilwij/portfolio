@@ -153,11 +153,11 @@ function SkillCard({ g }) {
       <div className="sk-list">
         {g.skills.map((s, i) => (
           <div className="sk-row" key={i}>
-            <span className="sk-name">{s.n}</span>
-            {s.lab && (s.slug
-              ? <a className="lab-chip" href={"article.html?a=" + s.slug} target="_blank" rel="noopener" title="Lab-backed — buka write-up">lab ↗</a>
-              : <span className="lab-chip" title="Lab-backed — write-up available">lab</span>
-            )}
+            {s.slug
+              ? <a className="sk-name sk-name--linked" href={"article.html?a=" + s.slug} target="_blank" rel="noopener" title={"Buka write-up: " + s.n}>{s.n}</a>
+              : <span className="sk-name">{s.n}</span>
+            }
+            {s.lab && <span className="lab-chip" title="Lab-backed — write-up available">lab</span>}
             <Lvl n={s.lvl} />
           </div>
         ))}
